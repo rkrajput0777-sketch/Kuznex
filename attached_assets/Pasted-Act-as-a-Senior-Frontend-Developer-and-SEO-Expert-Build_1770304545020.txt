@@ -1,0 +1,43 @@
+Act as a Senior Frontend Developer and SEO Expert. Build a high-performance, dark-themed Landing Page for a crypto firm named "Kuznex Pvt Ltd".
+
+Tech Stack: Next.js (App Router), Tailwind CSS, Lucide React (Icons).
+
+---
+### 1. SEO & METADATA (Crucial)
+Configure the metadata in layout.js or page.js to match this exact format so it looks professional on Google Search:
+- Title: "Kuznex | Secure, Compliant Crypto Trading & Exchange"
+- Description: "Kuznex is a regulated proprietary trading firm operating on Binance and Kuznex Exchange. We trade with proprietary capital only. No external user funds, no custody risk."
+- Keywords: "Crypto OTC, P2P India, USDT to INR, Proprietary Trading, Kuznex Exchange, FIU Compliant"
+
+### 2. UI DESIGN & SECTIONS
+The design must be "Cyber-Professional" (Dark Background #0f172a, Neon Green/Blue Accents, Clean Fonts).
+
+A. Navbar:
+   - Logo: "Kuznex" (Bold, Modern Font)
+   - Links: Home, OTC Desk, Instant Swap, Compliance, Login.
+
+B. Hero Section:
+   - Headline: "Institutional-Grade Crypto Trading for Everyone."
+   - Subheadline: "Seamless INR On-Ramp/Off-Ramp & Zero-Slippage Swaps. Powered by Kuznex Proprietary Capital."
+   - CTAs: "Start Trading" (Primary), "View Live Rates" (Secondary).
+
+C. The 'Trust Badge' Section (Similar to Zenoluna):
+   - Create a distinct card or section with a Shield Icon.
+   - Text: "Licensed & Regulated Entity"
+   - Subtext: "Registered under Indian Companies Act (CIN: U72900DL2026PTCXXXXX). Regulated Reporting Entity with FIU-IND. Verified for AML Compliance."
+   - Highlighted Box: "We trade with proprietary capital only. No external user funds, no custody risk."
+
+D. Features Grid:
+   - Instant Swap: "Convert USDT/BTC to INR instantly with zero fees."
+   - OTC Desk: "High volume trading for HNI individuals."
+   - Bank-Grade Security: "2FA Protected & SSL Encrypted."
+
+E. Footer:
+   - Company Name: Kuznex Pvt Ltd.
+   - Address: Mathura, Uttar Pradesh, India.
+   - Links: Privacy Policy, Terms of Service, Risk Disclosure.
+
+### 3. FUNCTIONALITY
+- Make the "Start Trading" button redirect to a Login page.
+- Ensure the site is fully responsive (Mobile-first).
+- Use a slight gradient effect on buttons to make them pop.
