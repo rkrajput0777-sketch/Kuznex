@@ -1,0 +1,46 @@
+Act as a Senior Full-Stack Blockchain Developer. Refactor the existing "Kuznex" project completely based on these new requirements.
+
+### 1. VISUAL OVERHAUL (White Theme & Trust)
+- Theme: Change the entire UI from Dark Mode to a Professional White/Light Theme.
+  - Background: White (#ffffff) and Light Gray (#f3f4f6).
+  - Text: Dark Slate (#1e293b) for headings, Gray (#64748b) for subtext.
+  - Accents: Use a Trustworthy Green (#10b981) for "Buy/Profit" and Primary Buttons.
+- Hero Section: Remove the "Stats Grid" ($50M Volume, Active Traders, etc.). Keep it clean with just the Headline: "Kuznex: Institutional-Grade Crypto OTC & Swap Desk."
+- Compliance Section: Update the "Licensed Entity" card.
+  - REMOVE: All specific License Numbers, CIN numbers, and IDs.
+  - KEEP: Generic text like "Compliant with Indian Companies Act", "FIU-IND Reporting Standards", and "KYC/AML Protocols".
+
+### 2. CORE FUNCTIONALITY (The "Real" Logic)
+Build a functional Dashboard for logged-in users with these features:
+
+A. Wallet System (PostgreSQL Schema):
+- Create a UserWallet table tracking balances for: INR, USDT, BTC, ETH, BNB.
+- Balances should be stored as Decimals.
+
+B. Deposit System (Crypto - Real Logic):
+- UI: Show a QR Code and a Wallet Address (I will provide the address in code constants).
+- Network: Support BSC (BEP20) and Polygon (MATIC) initially for low fees.
+- Logic: Add a button "I Have Sent Funds". When clicked, use a block explorer API (like BscScan API free tier) to check if the user's transaction has hit the Admin Wallet. If confirmed, update the User's Database Balance instantly.
+
+C. Instant Swap Engine (Any-to-Any):
+- UI: A simple "Convert" box (Like Binance Convert).
+- Price Feed: Fetch REAL-TIME prices using coingecko-api or Binance Public API.
+- Logic:
+  1. User selects "Swap USDT to BTC".
+  2. Fetch Live Rate -> Apply 1% Spread (Profit).
+  3. Check Database Balance -> Deduct USDT -> Add BTC (Internal Ledger Update).
+  4. Record transaction in SwapHistory.
+
+D. INR On/Off Ramp (Manual Queue):
+- Deposit INR: Show Admin Bank Details. User uploads "UTR/Reference No". Status set to "Pending". Admin (Me) will manually approve from DB.
+- Withdraw INR: User enters their Bank Details. Funds deducted from DB, status "Pending". Admin manually sends money.
+
+### 3. TECH STACK & LIBRARIES
+- Frontend: Next.js + Tailwind CSS.
+- Icons: Lucide-React.
+- Blockchain Utils: ethers.js (for address validation), axios (for API calls).
+- Charts: Lightweight-charts (TradingView) for a simple live price graph on the Swap page.
+
+### 4. SPECIFIC INSTRUCTION
+- Create a config file constants.js where I can easily paste my Admin Wallet Addresses (Metamask) later.
+- Do not use fake data. If the API fails, show "Price loading...".

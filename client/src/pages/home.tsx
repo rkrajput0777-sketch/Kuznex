@@ -8,7 +8,6 @@ import {
   Lock, 
   ArrowRight, 
   CheckCircle,
-  TrendingUp,
   Building2,
   Menu,
   X
@@ -53,7 +52,7 @@ function Navbar() {
 
           <div className="hidden md:flex items-center gap-3">
             <Link href="/login">
-              <Button variant="ghost" data-testid="button-login">
+              <Button data-testid="button-login">
                 Login
               </Button>
             </Link>
@@ -99,32 +98,22 @@ function Navbar() {
 
 function HeroSection() {
   return (
-    <section className="relative min-h-screen flex items-center justify-center pt-16 overflow-hidden">
+    <section className="relative min-h-[80vh] flex items-center justify-center pt-16 overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent" />
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
       
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 text-center">
+      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24 text-center">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-8">
           <Shield className="w-4 h-4 text-primary" />
           <span className="text-sm font-medium text-primary">FIU-IND Regulated Entity</span>
         </div>
         
-        <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight mb-6">
-          <span className="text-foreground">
-            Institutional-Grade
-          </span>
-          <br />
-          <span className="text-primary">
-            Crypto Trading
-          </span>
-          <br />
-          <span className="text-foreground">for Everyone.</span>
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6 text-foreground">
+          Kuznex: Institutional-Grade Crypto OTC & Swap Desk.
         </h1>
         
         <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
           Seamless INR On-Ramp/Off-Ramp & Zero-Slippage Swaps. 
-          <span className="text-foreground"> Powered by Kuznex Proprietary Capital.</span>
+          Powered by Kuznex Proprietary Capital.
         </p>
         
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -136,24 +125,7 @@ function HeroSection() {
           </Link>
           <Button size="lg" variant="outline" className="text-base px-8" data-testid="button-view-rates">
             View Live Rates
-            <TrendingUp className="w-4 h-4 ml-2" />
           </Button>
-        </div>
-
-        <div className="mt-16 grid grid-cols-2 sm:grid-cols-4 gap-6 max-w-3xl mx-auto">
-          {[
-            { label: "Daily Volume", value: "$50M+" },
-            { label: "Active Traders", value: "10,000+" },
-            { label: "Uptime", value: "99.99%" },
-            { label: "Support", value: "24/7" },
-          ].map((stat) => (
-            <div key={stat.label} className="text-center">
-              <div className="text-2xl sm:text-3xl font-bold text-foreground" data-testid={`text-stat-${stat.label.toLowerCase().replace(/\s/g, '-')}`}>
-                {stat.value}
-              </div>
-              <div className="text-sm text-muted-foreground">{stat.label}</div>
-            </div>
-          ))}
         </div>
       </div>
     </section>
@@ -165,12 +137,10 @@ function TrustBadgeSection() {
     <section id="compliance" className="py-24 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Card className="relative overflow-hidden border-primary/20">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-          
           <div className="relative p-8 sm:p-12">
             <div className="flex flex-col lg:flex-row items-start lg:items-center gap-8">
               <div className="flex-shrink-0">
-                <div className="w-20 h-20 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center">
+                <div className="w-20 h-20 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
                   <Shield className="w-10 h-10 text-primary" />
                 </div>
               </div>
@@ -180,12 +150,12 @@ function TrustBadgeSection() {
                   Licensed & Regulated Entity
                 </h2>
                 <p className="text-muted-foreground mb-6 max-w-2xl">
-                  Registered under Indian Companies Act (CIN: U72900DL2026PTCXXXXX). 
-                  Regulated Reporting Entity with FIU-IND. Verified for AML Compliance.
+                  Compliant with Indian Companies Act. Operating under FIU-IND Reporting Standards 
+                  with strict KYC/AML Protocols in place.
                 </p>
                 
                 <div className="flex flex-wrap gap-3">
-                  {["Companies Act Registered", "FIU-IND Compliant", "AML Verified", "KYC Enabled"].map((badge) => (
+                  {["Companies Act Compliant", "FIU-IND Reporting", "KYC/AML Protocols", "Data Protection"].map((badge) => (
                     <div 
                       key={badge}
                       className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20"
@@ -200,9 +170,7 @@ function TrustBadgeSection() {
             
             <div className="mt-8 p-6 rounded-xl bg-secondary border border-border">
               <div className="flex items-start gap-4">
-                <div className="flex-shrink-0">
-                  <Lock className="w-6 h-6 text-primary" />
-                </div>
+                <Lock className="w-6 h-6 text-primary flex-shrink-0" />
                 <div>
                   <h3 className="font-semibold text-foreground mb-1" data-testid="text-proprietary-capital">
                     Proprietary Capital Trading
@@ -245,8 +213,6 @@ function FeaturesSection() {
 
   return (
     <section className="py-24 relative">
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent" />
-      
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="text-3xl sm:text-4xl font-bold mb-4 text-foreground">
@@ -263,7 +229,7 @@ function FeaturesSection() {
             <Card 
               key={feature.id} 
               id={feature.id}
-              className="relative overflow-hidden border-border/50 hover-elevate transition-all duration-300"
+              className="hover-elevate transition-all duration-300"
             >
               <div className="p-8">
                 <div className="w-14 h-14 rounded-xl bg-primary flex items-center justify-center mb-6">
@@ -277,37 +243,9 @@ function FeaturesSection() {
                   {feature.description}
                 </p>
               </div>
-              
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary" />
             </Card>
           ))}
         </div>
-      </div>
-    </section>
-  );
-}
-
-function CTASection() {
-  return (
-    <section className="py-24 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-primary/5" />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-primary/20 rounded-full blur-3xl" />
-      
-      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <h2 className="text-3xl sm:text-5xl font-bold mb-6 text-foreground">
-          Ready to Start Trading?
-        </h2>
-        <p className="text-lg text-muted-foreground mb-10 max-w-2xl mx-auto">
-          Join thousands of traders who trust Kuznex for their crypto trading needs. 
-          Start with as little as INR 1,000.
-        </p>
-        
-        <Link href="/login">
-          <Button size="lg" className="text-base px-10" data-testid="button-cta-start">
-            Get Started Now
-            <ArrowRight className="w-4 h-4 ml-2" />
-          </Button>
-        </Link>
       </div>
     </section>
   );
@@ -328,7 +266,7 @@ function Footer() {
               </span>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              Institutional-grade crypto trading platform. Secure, compliant, and trusted by thousands.
+              Institutional-grade crypto trading platform. Secure, compliant, and trusted.
             </p>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Building2 className="w-4 h-4" />
@@ -341,7 +279,7 @@ function Footer() {
             <ul className="space-y-2">
               {["Instant Swap", "OTC Desk", "P2P Trading", "API Access"].map((item) => (
                 <li key={item}>
-                  <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid={`link-footer-${item.toLowerCase().replace(/\s/g, '-')}`}>
+                  <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                     {item}
                   </a>
                 </li>
@@ -354,7 +292,7 @@ function Footer() {
             <ul className="space-y-2">
               {["About Us", "Careers", "Blog", "Contact"].map((item) => (
                 <li key={item}>
-                  <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid={`link-footer-${item.toLowerCase().replace(/\s/g, '-')}`}>
+                  <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                     {item}
                   </a>
                 </li>
@@ -367,7 +305,7 @@ function Footer() {
             <ul className="space-y-2">
               {["Privacy Policy", "Terms of Service", "Risk Disclosure", "AML Policy"].map((item) => (
                 <li key={item}>
-                  <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid={`link-footer-${item.toLowerCase().replace(/\s/g, '-')}`}>
+                  <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                     {item}
                   </a>
                 </li>
@@ -399,7 +337,6 @@ export default function Home() {
         <HeroSection />
         <TrustBadgeSection />
         <FeaturesSection />
-        <CTASection />
       </main>
       <Footer />
     </div>
