@@ -1,0 +1,40 @@
+Act as a Senior Full-Stack Developer. We are building a "Manual KYC System" for Kuznex Exchange with AI Assistance.
+
+### 1. TECH STACK & APIS
+- Frontend: React + Tailwind CSS.
+- Backend: Node.js (Next.js Server Actions).
+- Database & Storage: Supabase (PostgreSQL + Storage Buckets).
+- AI Analysis: Google Gemini API (@google/generative-ai). Model: gemini-1.5-flash.
+
+### 2. DATABASE SCHEMA (Supabase)
+- **Table users:** Add columns:
+  - kyc_status (enum: 'pending', 'submitted', 'verified', 'rejected'). default 'pending'.
+  - rejection_reason (text).
+  - kyc_data (jsonb) -> Stores file paths for aadhaar_front, aadhaar_back, pan, selfieStorage Bucket:t:** Create a private bucket named kyc-documents.
+
+### 3. FRONTEND: KYC FLOW (User Side)
+Create a multi-step formStep 1 (Aadhaar):):** Upload Front & Back.
+AI Check:k:** Before submission, send image to Gemini API. Prompt: "Is this a valid Indian Aadhaar card? Is the text clear? Return JSON {valid: boolean, clear: boolean}."
+  - If valid, upload to SupabaseStep 2 (PAN):):** Upload Front.
+AI Check:k:** Similar Gemini check for PAN CardStep 3 (Selfie/Liveness):):**
+  - Use react-webcam to capture a live photo.
+AI Face Match:h:** Send (Selfie + Aadhaar Front) to Gemini. Prompt: "Compare these two faces. Do they belong to the same person? Return confidence score (0-100).Step 4:4:** Submit for Review. Update status to submitted.
+
+### 4. BACKEND: ADMIN PANEL (Manual Review)
+Create a secured route /admin/kyc-review:
+- List all users with kyc_status = 'submitted'.
+- Show their Selfie, Aadhaar, and PAN images side-by-side.
+- Show AI Confidence Scorere** (from Step 3)Buttons:s:**
+Approve:e:** Updates status to verified.
+Reject:t:** Opens a text box for "Reason", updates status to rejected.
+Delete Images (Space Saver):):** A button to delete the image files from Supabase Storage (keep the DB record) to save space.
+
+### 5. SECURITY (GATEKEEPING)
+- Create a Wrapper/HOC named RequireKYC.
+- Wrap the Deposit, Withdraw, and Swap pages with this.
+- Logic: If user.kyc_status !== 'verified', redirect to /kyc page with a message "Complete KYC to access funds."
+
+### 6. CONFIGURATION
+- Use NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY.
+- Use GEMINI_API_KEY.
+- Ensure the UI looks professional (White Theme).
