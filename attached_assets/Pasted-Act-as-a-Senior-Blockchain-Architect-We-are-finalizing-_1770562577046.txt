@@ -1,0 +1,48 @@
+Act as a Senior Blockchain Architect. We are finalizing the "Kuznex Exchange" with a secure, hybrid architecture.
+
+### 1. CORE CONFIGURATION
+- Database: Use Supabase (@supabase/supabase-js).
+- Blockchain API: Use Etherscan V2 Multichain API.
+  - Key: WX1UHZI4J8K6GHN7C7XT8HMFT5IUP1J75M (Supports ETH, BSC, Polygon, Base, etc.).
+  - Endpoint Pattern: https://api.etherscan.io/v2/api?chainid={CHAIN_ID}&module=account&action=tokentx...
+- Security: Use crypto-js to encrypt all user private keys before storing in DB.
+
+### 2. USER ADDRESS GENERATION (The Wallet System)
+- When a user Signs Up:
+  1. Generate a random EVM wallet using ethers.Wallet.createRandom().
+  2. Encrypt the Private Key using ENCRYPTION_KEY (from Secrets).
+  3. Store address (public) and private_key_enc (encrypted) in the wallets table.
+  4. Note: This *same address* works for ETH, BSC, Polygon, and Base.
+
+### 3. BINANCE-STYLE DEPOSIT (The "Watcher")
+- Create a background job (or use Next.js API route /api/cron/check-deposits) that runs every 60 seconds.
+- Logic:
+  - Loop through supported Chain IDs: Ethereum (1), BSC (56), Polygon (137), Base (8453).
+  - Fetch transactions for User Addresses using the Etherscan V2 API.
+  - Progress Bar Logic:
+    - Calculate Confirmations = CurrentBlock - TxBlock.
+    - If Confirmations < 12: Status = "Confirming". Show Progress Bar (e.g., "8/12 blocks") on Frontend.
+    - If Confirmations >= 12: Status = "Completed". Update User Balance in Supabase.
+
+### 4. MANUAL WITHDRAWAL (Admin Approval)
+- User Side:
+  - Form: Select Network -> Enter Address -> Amount.
+  - Logic: Deduct balance immediately -> Create "Pending" record in DB.
+- **Admin Side (/admin/withdrawals):**
+  - Show list of Pending requests.
+Approve Button:n:**
+    - Decrypts MASTER_PRIVATE_KEY (Hot Wallet).
+    - Sends funds to user using ethers.js.
+    - Marks as "Completed".
+Reject Button:n:** Refunds balance to user.
+
+### 5. FUND CONTROL (The "Sweep" System)
+- Create a secure Admin Butt"Sweep All Funds"s"**Logic:c:**
+  1. Fetch ALL user encrypted keys from DB.
+  2. Decrypt them one by one.
+  3. Check balances on all chains.
+  4. If Balance > Gas Fee, transfer the *entire* amount to ADMIN_COLD_WALLET (from Secrets).
+- This ensures users don't hold funds; the Admin holds everything securely.
+
+### 6. UI/UX
+- Dashboard should look like Binance: Clean white theme, Real-time status badges, Progress bars for incoming deposits.
