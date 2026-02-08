@@ -1,0 +1,42 @@
+Act as a Senior Full-Stack Developer. We are adding a "Live Spot Trading" module to Kuznex Exchange.
+
+### OBJECTIVE:
+Build a professional Spot Trading Interface (like Binance/Bybit) where users can Buy/Sell crypto instantly.
+
+### 1. TECH STACK & DATA SOURCE
+- Price Data: Use the Binance Public WebSocket API (stream.binance.com) to fetch real-time prices for top pairs (BTC/USDT, ETH/USDT, BNB/USDT, SOL/USDT, etc.).
+- Charting: Implement the TradingView Advanced Real-Time Widget (Free tier).
+- Library: Use ccxt (JavaScript) to fetch the list of top 100 coins and their daily stats (24h Change, Volume).
+
+### 2. DATABASE SCHEMA (Update Supabase)
+- **Table orders:**
+  - id, user_id, pair (e.g., BTC/USDT), type (BUY/SELL), amount, price, fee, total_usdt, status (completed), created_atWallet Logic:c:**
+  - Ensure the user has enough Balance before trading.
+  - Using Supabase Transactions (RPC) to safely deduct Money and add Coins atomically.
+
+### 3. THE TRADING INTERFACE (Frontend)
+Create a page /trade/[pair] with a 3-column layout (Binance Style):Left Column (Market List):):**
+  - Searchable list of Top 100 pairs.
+  - Columns: Pair Name, Price (Live updating red/green), 24h Change %.
+  - Click to change the current active pair.Middle Column (Chart & Stats):):**
+  - Top: Coin Header (Logo, Price, 24h High/Low).
+  - CentTradingView Widgetet** (set symbol dynamically, e.g., "BINANCE:BTCUSDT").
+  - Bottom: "Recent Trades" (Fake/Simulated list derived from real volume to make it look alive).Right Column (Order Form):):**
+  - TaBuyuy** (GreenSellll** (Red).
+  - Inputs: Price (Auto-filled but editable), Amount (Slider 25%, 50%, 100%).
+Fee Display:y:** "Trading Fee (0.1%): $0.50".
+Button:n:** Large "Buy BTC" or "Sell BTC" button.
+Logic:c:**
+    - On Buy: Check USDT Balance -> Deduct (Amount + Fee) -> Add BTC to database wallet.
+    - On Sell: Check BTC Balance -> Deduct BTC -> Add USDT (minus Fee) to database wallet.
+
+### 4. PROFIT MECHANISM (Fees)
+- Set a global variable TRADING_FEE = 0.001 (0.1%).
+- Deduct this fee from *every* trade.
+- Store the collected fees in a separate Admin View so I can see my profit.
+
+### 5. EXECUTION
+- No complex order matching. Execute ordInstantlyly** at the current market price (Brokerage model).
+- Show a "Success" popup and update the "My Assets" section immediately.
+
+Make it look exactly like Binance's Spot interface (Dark/Light mode compatible).
