@@ -71,10 +71,10 @@ export default function Contact() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>Contact Us | Kuznex - Crypto Exchange Support</title>
-        <meta name="description" content="Get in touch with the Kuznex support team. Submit your queries about deposits, withdrawals, KYC verification, or technical issues." />
+        <meta name="description" content="Get in touch with the Kuznex support team at support@Kuznex.in. Submit your queries about deposits, withdrawals, KYC verification, or technical issues." />
         <meta property="og:title" content="Contact Us | Kuznex" />
-        <meta property="og:description" content="Reach Kuznex support for help with deposits, withdrawals, KYC, and account issues." />
-        <link rel="canonical" href="https://kuznex.com/contact" />
+        <meta property="og:description" content="Reach Kuznex support for help with deposits, withdrawals, KYC, and account issues. Email: support@Kuznex.in" />
+        <link rel="canonical" href="https://kuznex.in/contact" />
       </Helmet>
       <header className="border-b border-border/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-4 flex-wrap">
@@ -212,9 +212,9 @@ export default function Contact() {
         )}
 
         <p className="text-center text-xs text-muted-foreground mt-8" data-testid="text-email-alt">
-          You can also reach us at{" "}
-          <a href="mailto:support@kuznex.com" className="text-primary">
-            support@kuznex.com
+          Need help?{" "}
+          <a href="mailto:support@Kuznex.in" className="text-primary font-medium">
+            support@Kuznex.in
           </a>
         </p>
       </main>

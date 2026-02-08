@@ -140,11 +140,18 @@ Kuznex is built as a monorepo, separating the application into `client/` (React 
 - `/legal/tds-compliance` — TDS Compliance (Section 194S explanation)
 
 ### SEO
-- Global meta tags: title, description, keywords, OG tags, Twitter cards optimized for Indian crypto keywords
-- `sitemap.xml` and `robots.txt` in `client/public/`
-- Canonical URL set to `https://kuznex.com/`
+- Domain: `kuznex.in` (all canonical URLs, OG tags, sitemap use .in domain)
+- Support email: `support@Kuznex.in` (across contact page, legal pages, meta tags)
+- Global meta tags: title, description, massive keyword list, OG tags, Twitter cards optimized for Indian crypto keywords
+- Per-page SEO via `react-helmet-async` with Helmet component on Home, Contact, and all Legal pages
+- `sitemap.xml` — public pages only (home, login, contact, legal pages; auth-gated routes excluded)
+- `robots.txt` — Disallow auth-gated routes (/swap, /trade, /deposit, /inr, /withdraw, /admin, /dashboard, /kyc)
+- Canonical URL set to `https://kuznex.in/`
 
 ## Recent Changes (2026-02-08)
+- Rebranded domain from kuznex.com to kuznex.in across all SEO, canonical URLs, OG tags, sitemap, robots.txt
+- Updated all support emails from support@kuznex.com to support@Kuznex.in (contact page, legal pages, meta tags)
+- Massive SEO keyword injection with 35+ India-focused crypto keywords
 - Added Contact Us system: public form (/contact) + admin portal (/admin/messages)
 - Created 5 legal pages: Privacy Policy, Terms, Risk Disclosure, AML Policy, TDS Compliance
 - Full SEO optimization: meta tags, OG tags, sitemap.xml, robots.txt for Indian crypto keywords

@@ -755,11 +755,12 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>Kuznex | Secure Crypto Exchange - Trade Digital Assets with INR</title>
-        <meta name="description" content="Kuznex is a secure, TDS-compliant crypto exchange for trading Bitcoin, USDT, and digital assets with INR. Multichain deposits across 8 networks, instant swaps, and spot trading." />
-        <meta property="og:title" content="Kuznex | Secure Crypto Exchange" />
-        <meta property="og:description" content="Trade Bitcoin, USDT, and digital assets with INR on a secure, TDS-compliant platform." />
-        <link rel="canonical" href="https://kuznex.com/" />
+        <title>Kuznex | India's #1 Trusted Crypto Exchange | Buy Bitcoin & USDT with INR</title>
+        <meta name="description" content="Join Kuznex, India's most secure crypto exchange. Buy USDT, Bitcoin (BTC), Ethereum (ETH) with UPI & IMPS. 100% TDS Compliant. Instant Withdrawals in INR." />
+        <meta property="og:site_name" content="Kuznex Exchange" />
+        <meta property="og:title" content="Buy Crypto in India with INR | Kuznex" />
+        <meta property="og:description" content="Zero Fee Deposits. Instant KYC. 100% Safe & Legal. Sign up now and get started!" />
+        <link rel="canonical" href="https://kuznex.in/" />
       </Helmet>
       <style>{`
         @keyframes float {

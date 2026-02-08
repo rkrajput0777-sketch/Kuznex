@@ -7,7 +7,7 @@ import kuznexLogo from "@assets/image_1770554564085.png";
 function LegalLayout({ title, description, slug, children }: { title: string; description?: string; slug?: string; children: React.ReactNode }) {
   const pageTitle = `${title} | Kuznex`;
   const pageDescription = description || `${title} for Kuznex Pvt Ltd crypto exchange platform.`;
-  const canonicalUrl = slug ? `https://kuznex.com/legal/${slug}` : "https://kuznex.com/";
+  const canonicalUrl = slug ? `https://kuznex.in/legal/${slug}` : "https://kuznex.in/";
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
@@ -101,12 +101,12 @@ export function PrivacyPolicy() {
 
       <section>
         <h2 className="text-lg font-semibold text-foreground mb-3">7. Your Rights</h2>
-        <p>You have the right to access, correct, or request deletion of your personal data, subject to regulatory retention requirements. To exercise these rights, please contact us at support@kuznex.com.</p>
+        <p>You have the right to access, correct, or request deletion of your personal data, subject to regulatory retention requirements. To exercise these rights, please contact us at support@Kuznex.in.</p>
       </section>
 
       <section>
         <h2 className="text-lg font-semibold text-foreground mb-3">8. Contact</h2>
-        <p>For privacy-related queries, contact our Data Protection Officer at <a href="mailto:support@kuznex.com" className="text-primary">support@kuznex.com</a>.</p>
+        <p>For privacy-related queries, contact our Data Protection Officer at <a href="mailto:support@Kuznex.in" className="text-primary">support@Kuznex.in</a>.</p>
       </section>
     </LegalLayout>
   );
@@ -272,7 +272,7 @@ export function AmlPolicy() {
 
       <section>
         <h2 className="text-lg font-semibold text-foreground mb-3">7. Contact</h2>
-        <p>To report suspected money laundering or financial crimes, contact our Compliance Officer at <a href="mailto:support@kuznex.com" className="text-primary">support@kuznex.com</a>.</p>
+        <p>To report suspected money laundering or financial crimes, contact our Compliance Officer at <a href="mailto:support@Kuznex.in" className="text-primary">support@Kuznex.in</a>.</p>
       </section>
     </LegalLayout>
   );
@@ -330,7 +330,7 @@ export function TdsCompliance() {
 
       <section>
         <h2 className="text-lg font-semibold text-foreground mb-3">8. Contact</h2>
-        <p>For TDS-related queries, contact us at <a href="mailto:support@kuznex.com" className="text-primary">support@kuznex.com</a>.</p>
+        <p>For TDS-related queries, contact us at <a href="mailto:support@Kuznex.in" className="text-primary">support@Kuznex.in</a>.</p>
       </section>
     </LegalLayout>
   );

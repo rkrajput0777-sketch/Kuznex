@@ -4,5 +4,10 @@ Disallow: /admin/
 Disallow: /dashboard
 Disallow: /kyc
 Disallow: /api/
+Disallow: /swap
+Disallow: /trade
+Disallow: /deposit
+Disallow: /inr
+Disallow: /withdraw
 
-Sitemap: https://kuznex.com/sitemap.xml
+Sitemap: https://kuznex.in/sitemap.xml
