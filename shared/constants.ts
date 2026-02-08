@@ -113,6 +113,23 @@ export const VERIFIED_TOKEN_CONTRACTS: Record<number, Record<string, { currency:
 
 export const SWAP_SPREAD_PERCENT = 1;
 
+export const SPOT_TRADING_FEE = 0.001;
+
+export const TRADABLE_PAIRS = [
+  { symbol: "BTCUSDT", base: "BTC", quote: "USDT", displayName: "BTC/USDT" },
+  { symbol: "ETHUSDT", base: "ETH", quote: "USDT", displayName: "ETH/USDT" },
+  { symbol: "BNBUSDT", base: "BNB", quote: "USDT", displayName: "BNB/USDT" },
+] as const;
+
+export const VIEWABLE_PAIRS = [
+  "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT",
+  "DOGEUSDT", "ADAUSDT", "AVAXUSDT", "DOTUSDT", "MATICUSDT",
+  "LINKUSDT", "LTCUSDT", "UNIUSDT", "SHIBUSDT", "ATOMUSDT",
+  "NEARUSDT", "APTUSDT", "ARBUSDT", "OPUSDT", "FILUSDT",
+  "AAVEUSDT", "MKRUSDT", "GRTUSDT", "INJUSDT", "FETUSDT",
+  "RNDRUSDT", "SUIUSDT", "SEIUSDT", "TIAUSDT", "JUPUSDT",
+] as const;
+
 export const ADMIN_BANK_DETAILS = {
   bankName: "To be configured",
   accountNumber: "To be configured",

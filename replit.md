@@ -15,7 +15,7 @@ STRICT REQUIREMENT: Use external Supabase database (project will be migrated to 
 
 ### Directory Structure
 - `client/` — React frontend (Vite-based SPA)
-  - `client/src/pages/` — Page components (home, login, dashboard, swap, deposit, inr, kyc, admin-kyc, admin-users, admin-withdrawals, not-found)
+  - `client/src/pages/` — Page components (home, login, dashboard, swap, deposit, inr, kyc, admin-kyc, admin-users, admin-withdrawals, spot-trade, not-found)
   - `client/src/components/ui/` — shadcn/ui component library
   - `client/src/hooks/` — Custom React hooks
   - `client/src/lib/` — Utilities (query client, cn helper, auth hooks)
@@ -176,6 +176,21 @@ STRICT REQUIREMENT: Use external Supabase database (project will be migrated to 
 - **CoinGecko API** — Real-time crypto price feeds (BTC, ETH, BNB, USDT)
 - **Etherscan V2 Multichain API** — Unified blockchain monitoring across 8 chains (single API key)
 - **Google Gemini AI** — KYC document analysis and verification
+
+### Spot Trading Module
+- **Route**: `/trade/:pair` — Binance-style 3-column spot trading interface
+- **Supported tradable pairs**: BTC/USDT, ETH/USDT, BNB/USDT (wallet-backed)
+- **Viewable pairs**: Top 30 crypto pairs from Binance for market browsing
+- **Price data**: Binance WebSocket (wss://stream.binance.com:9443) for real-time tickers
+- **Charting**: TradingView Advanced Real-Time Widget (embedded)
+- **Order execution**: Instant at market price (brokerage model, no order matching)
+- **Trading fee**: 0.1% per trade (configurable in shared/constants.ts as SPOT_TRADING_FEE)
+- **Database**: spot_orders table (id, user_id, pair, side, amount, price, fee, total_usdt, status, created_at)
+
+### Spot Trading API Endpoints
+- `GET /api/spot/pairs` — Get top trading pairs with 24h stats from Binance
+- `POST /api/spot/order` — Execute instant spot trade (KYC required)
+- `GET /api/spot/orders` — Get user's order history
 
 ## Recent Changes (2026-02-08)
 - Expanded to 8-chain support: Ethereum (1), BSC (56), Polygon (137), Base (8453), Arbitrum (42161), Optimism (10), Avalanche (43114), Fantom (250)

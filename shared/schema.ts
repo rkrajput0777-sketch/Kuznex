@@ -119,3 +119,24 @@ export const withdrawRequestSchema = z.object({
   network: z.string().min(1),
   withdrawAddress: z.string().min(1, "Withdrawal address is required"),
 });
+
+export interface SpotOrder {
+  id: number;
+  user_id: number;
+  pair: string;
+  side: string;
+  amount: string;
+  price: string;
+  fee: string;
+  total_usdt: string;
+  status: string;
+  created_at: string;
+}
+
+export type InsertSpotOrder = Omit<SpotOrder, "id" | "created_at">;
+
+export const spotOrderSchema = z.object({
+  pair: z.string().min(1, "Trading pair is required"),
+  side: z.enum(["BUY", "SELL"]),
+  amount: z.string().min(1, "Amount is required"),
+});

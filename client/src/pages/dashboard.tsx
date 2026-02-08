@@ -16,6 +16,7 @@ import {
   Settings,
   Users,
   X,
+  BarChart3,
 } from "lucide-react";
 import type { UserWallet } from "@shared/schema";
 import kuznexLogo from "@assets/image_1770554564085.png";
@@ -113,6 +114,12 @@ export default function Dashboard() {
                   Wallet
                 </Button>
               </Link>
+              <Link href="/trade/BTCUSDT">
+                <Button variant="ghost" size="sm" data-testid="link-nav-trade">
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  Trade
+                </Button>
+              </Link>
               <Link href="/swap">
                 <Button variant="ghost" size="sm" data-testid="link-nav-swap">
                   <ArrowLeftRight className="w-4 h-4 mr-2" />
@@ -162,6 +169,9 @@ export default function Dashboard() {
           <div className="md:hidden flex items-center gap-1 pb-3 overflow-x-auto">
             <Link href="/dashboard">
               <Button variant="ghost" size="sm"><Wallet className="w-4 h-4 mr-1" /> Wallet</Button>
+            </Link>
+            <Link href="/trade/BTCUSDT">
+              <Button variant="ghost" size="sm"><BarChart3 className="w-4 h-4 mr-1" /> Trade</Button>
             </Link>
             <Link href="/swap">
               <Button variant="ghost" size="sm"><ArrowLeftRight className="w-4 h-4 mr-1" /> Swap</Button>
@@ -275,7 +285,20 @@ export default function Dashboard() {
           </div>
         )}
 
-        <div className="mt-8 grid sm:grid-cols-3 gap-4">
+        <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Link href="/trade/BTCUSDT">
+            <Card className="p-5 hover-elevate cursor-pointer" data-testid="card-spot-trade">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <BarChart3 className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-medium text-foreground">Spot Trading</p>
+                  <p className="text-xs text-muted-foreground">Buy & Sell crypto</p>
+                </div>
+              </div>
+            </Card>
+          </Link>
           <Link href="/swap">
             <Card className="p-5 hover-elevate cursor-pointer">
               <div className="flex items-center gap-3">

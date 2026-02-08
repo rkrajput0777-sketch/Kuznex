@@ -11,7 +11,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { ArrowLeft, Shield, Mail, Lock, Eye, EyeOff, User } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, registerSchema } from "@shared/schema";
@@ -39,8 +39,13 @@ export default function Login() {
     defaultValues: { username: "", email: "", password: "" },
   });
 
+  useEffect(() => {
+    if (user) {
+      setLocation("/dashboard");
+    }
+  }, [user, setLocation]);
+
   if (user) {
-    setLocation("/dashboard");
     return null;
   }
 
@@ -93,7 +98,7 @@ export default function Login() {
 
           <Card className="border-border/50">
             {!isRegister ? (
-              <Form {...loginForm}>
+              <Form key="login-form" {...loginForm}>
                 <form onSubmit={loginForm.handleSubmit(onLogin)} className="p-6 space-y-5">
                   <FormField
                     control={loginForm.control}
@@ -142,7 +147,7 @@ export default function Login() {
                 </form>
               </Form>
             ) : (
-              <Form {...registerForm}>
+              <Form key="register-form" {...registerForm}>
                 <form onSubmit={registerForm.handleSubmit(onRegister)} className="p-6 space-y-5">
                   <FormField
                     control={registerForm.control}
@@ -202,7 +207,7 @@ export default function Login() {
 
           <p className="text-center text-sm text-muted-foreground mt-6">
             {isRegister ? "Already have an account?" : "Don't have an account?"}{" "}
-            <button onClick={() => setIsRegister(!isRegister)} className="text-primary hover:underline font-medium" data-testid="button-toggle-auth">
+            <button onClick={() => { setIsRegister(!isRegister); loginForm.reset(); registerForm.reset(); }} className="text-primary hover:underline font-medium" data-testid="button-toggle-auth">
               {isRegister ? "Sign in" : "Sign up for free"}
             </button>
           </p>

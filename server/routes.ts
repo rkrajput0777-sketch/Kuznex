@@ -3,8 +3,8 @@ import { createServer, type Server } from "http";
 import passport from "passport";
 import { storage } from "./storage";
 import { setupAuth, requireAuth } from "./auth";
-import { registerSchema, swapRequestSchema, inrDepositSchema, inrWithdrawSchema, withdrawRequestSchema } from "@shared/schema";
-import { COINGECKO_IDS, SWAP_SPREAD_PERCENT, ADMIN_BANK_DETAILS, SUPPORTED_NETWORKS, SUPPORTED_CHAINS, type ChainConfig } from "@shared/constants";
+import { registerSchema, swapRequestSchema, inrDepositSchema, inrWithdrawSchema, withdrawRequestSchema, spotOrderSchema } from "@shared/schema";
+import { COINGECKO_IDS, SWAP_SPREAD_PERCENT, ADMIN_BANK_DETAILS, SUPPORTED_NETWORKS, SUPPORTED_CHAINS, SPOT_TRADING_FEE, TRADABLE_PAIRS, VIEWABLE_PAIRS, type ChainConfig } from "@shared/constants";
 import axios from "axios";
 import multer from "multer";
 import path from "path";
@@ -832,6 +832,167 @@ export async function registerRoutes(
       }
 
       res.json({ swept: results.filter(r => r.status === "sent").length, total: results.length, results });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/spot/pairs", async (_req, res) => {
+    try {
+      const response = await axios.get(
+        `https://api.binance.com/api/v3/ticker/24hr`,
+        { timeout: 10000 }
+      );
+      const allTickers = response.data as any[];
+      const filtered = allTickers
+        .filter((t: any) => VIEWABLE_PAIRS.includes(t.symbol))
+        .map((t: any) => {
+          const tradablePair = TRADABLE_PAIRS.find(p => p.symbol === t.symbol);
+          return {
+            symbol: t.symbol,
+            displayName: t.symbol.replace("USDT", "/USDT"),
+            price: t.lastPrice,
+            priceChangePercent: t.priceChangePercent,
+            highPrice: t.highPrice,
+            lowPrice: t.lowPrice,
+            volume: t.volume,
+            quoteVolume: t.quoteVolume,
+            tradable: !!tradablePair,
+            base: tradablePair?.base || t.symbol.replace("USDT", ""),
+            quote: "USDT",
+          };
+        })
+        .sort((a: any, b: any) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume));
+      res.json(filtered);
+    } catch (error: any) {
+      res.status(503).json({ message: "Market data unavailable" });
+    }
+  });
+
+  app.post("/api/spot/order", requireKycVerifiedOrAdmin, async (req, res) => {
+    try {
+      const parsed = spotOrderSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+
+      const { pair, side, amount: amountStr } = parsed.data;
+      const userId = getEffectiveUserId(req);
+      const amount = parseFloat(amountStr);
+
+      if (isNaN(amount) || amount <= 0) {
+        return res.status(400).json({ message: "Invalid amount" });
+      }
+
+      const tradablePair = TRADABLE_PAIRS.find(p => p.symbol === pair);
+      if (!tradablePair) {
+        return res.status(400).json({ message: "This pair is not available for trading. Only BTC/USDT, ETH/USDT, and BNB/USDT are supported." });
+      }
+
+      const { base, quote } = tradablePair;
+
+      const tickerResp = await axios.get(
+        `https://api.binance.com/api/v3/ticker/price?symbol=${pair}`,
+        { timeout: 10000 }
+      );
+      const marketPrice = parseFloat(tickerResp.data.price);
+      if (!marketPrice || marketPrice <= 0) {
+        return res.status(503).json({ message: "Unable to fetch market price" });
+      }
+
+      const fee = amount * SPOT_TRADING_FEE;
+
+      if (side === "BUY") {
+        const totalUsdt = amount * marketPrice + fee * marketPrice;
+        const usdtWallet = await storage.getWallet(userId, quote);
+        if (!usdtWallet || parseFloat(usdtWallet.balance) < totalUsdt) {
+          return res.status(400).json({ message: `Insufficient ${quote} balance. Need ${totalUsdt.toFixed(2)} ${quote}` });
+        }
+
+        const originalUsdtBalance = usdtWallet.balance;
+        const newUsdtBalance = (parseFloat(usdtWallet.balance) - totalUsdt).toFixed(8);
+        await storage.updateWalletBalance(userId, quote, newUsdtBalance);
+
+        try {
+          const baseWallet = await storage.getWallet(userId, base);
+          const originalBaseBalance = baseWallet?.balance || "0";
+          const newBaseBalance = (parseFloat(originalBaseBalance) + amount).toFixed(8);
+          await storage.updateWalletBalance(userId, base, newBaseBalance);
+
+          try {
+            const order = await storage.createSpotOrder({
+              user_id: userId,
+              pair,
+              side: "BUY",
+              amount: amount.toFixed(8),
+              price: marketPrice.toFixed(8),
+              fee: (fee * marketPrice).toFixed(8),
+              total_usdt: totalUsdt.toFixed(8),
+              status: "completed",
+            });
+            res.json(order);
+          } catch (orderErr) {
+            await storage.updateWalletBalance(userId, base, originalBaseBalance);
+            await storage.updateWalletBalance(userId, quote, originalUsdtBalance);
+            throw orderErr;
+          }
+        } catch (creditErr: any) {
+          if (!creditErr.message?.includes("Failed to create spot order")) {
+            await storage.updateWalletBalance(userId, quote, originalUsdtBalance);
+          }
+          throw creditErr;
+        }
+      } else {
+        const baseWallet = await storage.getWallet(userId, base);
+        if (!baseWallet || parseFloat(baseWallet.balance) < amount) {
+          return res.status(400).json({ message: `Insufficient ${base} balance` });
+        }
+
+        const grossUsdt = amount * marketPrice;
+        const feeUsdt = grossUsdt * SPOT_TRADING_FEE;
+        const netUsdt = grossUsdt - feeUsdt;
+
+        const originalBaseBalance = baseWallet.balance;
+        const newBaseBalance = (parseFloat(baseWallet.balance) - amount).toFixed(8);
+        await storage.updateWalletBalance(userId, base, newBaseBalance);
+
+        try {
+          const usdtWallet = await storage.getWallet(userId, quote);
+          const originalUsdtBalance = usdtWallet?.balance || "0";
+          const newUsdtBalance = (parseFloat(originalUsdtBalance) + netUsdt).toFixed(8);
+          await storage.updateWalletBalance(userId, quote, newUsdtBalance);
+
+          try {
+            const order = await storage.createSpotOrder({
+              user_id: userId,
+              pair,
+              side: "SELL",
+              amount: amount.toFixed(8),
+              price: marketPrice.toFixed(8),
+              fee: feeUsdt.toFixed(8),
+              total_usdt: grossUsdt.toFixed(8),
+              status: "completed",
+            });
+            res.json(order);
+          } catch (orderErr) {
+            await storage.updateWalletBalance(userId, quote, originalUsdtBalance);
+            await storage.updateWalletBalance(userId, base, originalBaseBalance);
+            throw orderErr;
+          }
+        } catch (creditErr: any) {
+          if (!creditErr.message?.includes("Failed to create spot order")) {
+            await storage.updateWalletBalance(userId, base, originalBaseBalance);
+          }
+          throw creditErr;
+        }
+      }
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Trade execution failed" });
+    }
+  });
+
+  app.get("/api/spot/orders", requireAuth, async (req, res) => {
+    try {
+      const orders = await storage.getSpotOrdersByUser(getEffectiveUserId(req));
+      res.json(orders);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

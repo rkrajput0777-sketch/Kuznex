@@ -7,6 +7,8 @@ import type {
   CryptoDeposit,
   InrTransaction,
   Transaction,
+  SpotOrder,
+  InsertSpotOrder,
 } from "@shared/schema";
 import { SUPPORTED_CURRENCIES } from "@shared/constants";
 import bcrypt from "bcrypt";
@@ -43,6 +45,8 @@ export interface IStorage {
   getAllDepositAddresses(): Promise<{ user_id: number; currency: string; deposit_address: string; network: string }[]>;
   getWalletByAddress(address: string): Promise<UserWallet | undefined>;
   adjustUserBalance(userId: number, currency: string, amount: number): Promise<void>;
+  createSpotOrder(data: InsertSpotOrder): Promise<SpotOrder>;
+  getSpotOrdersByUser(userId: number): Promise<SpotOrder[]>;
 }
 
 export class SupabaseStorage implements IStorage {
@@ -422,6 +426,27 @@ export class SupabaseStorage implements IStorage {
       deposit_address: w.deposit_address,
       network: "bsc",
     }));
+  }
+
+  async createSpotOrder(data: InsertSpotOrder): Promise<SpotOrder> {
+    const { data: order, error } = await supabase
+      .from("spot_orders")
+      .insert(data)
+      .select()
+      .single();
+    if (error || !order) throw new Error(error?.message || "Failed to create spot order");
+    return order as SpotOrder;
+  }
+
+  async getSpotOrdersByUser(userId: number): Promise<SpotOrder[]> {
+    const { data, error } = await supabase
+      .from("spot_orders")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) throw new Error(error.message);
+    return (data || []) as SpotOrder[];
   }
 }
 
