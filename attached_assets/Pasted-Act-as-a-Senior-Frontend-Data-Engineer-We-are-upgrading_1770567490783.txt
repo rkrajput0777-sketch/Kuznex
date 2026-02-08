@@ -1,0 +1,29 @@
+Act as a Senior Frontend & Data Engineer. We are upgrading the Kuznex Dashboard with "Portfolio Analytics" and a "3D UI Experience".
+
+### 1. DATABASE UPDATES (Supabase)
+- **New Table daily_snapshots:**
+  - Columns: id, user_id, date (YYYY-MM-DD), total_balance_usdt, created_at.
+Logic:c:** Create a Scheduled Job (Cron) that runs at 00:00 UTC every day to save every user's current balance into this table. This is the "Yesterday's Balance" reference.
+
+- **Modify users table (or a View):**
+  - Add computed fields/aggregates:
+    - total_deposited: Sum of all 'completed' deposits.
+    - total_withdrawn: Sum of all 'completed' withdrawals.
+
+### 2. BACKEND LOGIC (The Calculation Engine)
+Create an API endpoint /api/user/stats that calculatTotal In/Out:n/Out:** Sum from transactions tab24h Change (PnL):(PnL):**
+    - Current Balance - Balance from daily_snapshots (Yesterday).
+    - If no snapshot exists (new user), use 0.
+    - Return change_amount (e.g., +$50) and change_percentage (e.g., +2.5%).
+
+### 3. USER DASHBOARD (The 3D VisLibrary:brary:** Import vanilla-tilt.js (lightweight 3D tilt librThe "Portfolio Card":Card":**
+  - Create a Glassmorphism Card (frosted glass look) near the Wallet secti3D Effect:ffect:** Apply data-tilt so the card tilts in 3D when hoverContent:ntent:*Main:*Main:** Total Balance (Big Font)Indicator:cator:** A floating badge showing "24h PnL".
+      - If PoGreen Up Arrow (▲) +$12 (+1.2%)+1.2%)** (Glowing Green).
+      - If NeRed Down Arrow (▼) -$5 (-0.4%)-0.4%)** (Glowing Red)Mini Stats:Stats:** Small text at bottom: "Total Dep: $500 | Total W/D: $200".
+
+### 4. ADMIN PANEL UPGRADE (User Analytics)
+- In the /admin/users table, add these columNet Deposit:posit:** (Total Dep - Total W/24h Activity:ivity:** Show the % chanVisuals:suals:** Color the Net Deposit. If they withdrew more than deposited, show in Red (Risk?). If they deposited heavily, show Green (Whale?).
+
+### 5. EXECUTION
+- Ensure the logic handles "Division by Zero" (if balance was 0 yesterday).
+- The 3D Card should look premium (Cyberpunk/Fintech style).

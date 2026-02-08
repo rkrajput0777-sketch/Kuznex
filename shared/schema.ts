@@ -135,6 +135,22 @@ export interface SpotOrder {
 
 export type InsertSpotOrder = Omit<SpotOrder, "id" | "created_at">;
 
+export interface DailySnapshot {
+  id: number;
+  user_id: number;
+  date: string;
+  total_balance_usdt: string;
+  created_at: string;
+}
+
+export interface UserStats {
+  totalDeposited: number;
+  totalWithdrawn: number;
+  change24hAmount: number;
+  change24hPercent: number;
+  totalBalanceUsdt: number;
+}
+
 export const spotOrderSchema = z.object({
   pair: z.string().min(1, "Trading pair is required"),
   side: z.enum(["BUY", "SELL"]),

@@ -9,6 +9,7 @@ import type {
   Transaction,
   SpotOrder,
   InsertSpotOrder,
+  DailySnapshot,
 } from "@shared/schema";
 import { SUPPORTED_CURRENCIES } from "@shared/constants";
 import bcrypt from "bcrypt";
@@ -47,6 +48,11 @@ export interface IStorage {
   adjustUserBalance(userId: number, currency: string, amount: number): Promise<void>;
   createSpotOrder(data: InsertSpotOrder): Promise<SpotOrder>;
   getSpotOrdersByUser(userId: number): Promise<SpotOrder[]>;
+  createDailySnapshot(userId: number, date: string, totalBalanceUsdt: string): Promise<DailySnapshot>;
+  getDailySnapshot(userId: number, date: string): Promise<DailySnapshot | undefined>;
+  getUserTotalDeposited(userId: number): Promise<number>;
+  getUserTotalWithdrawn(userId: number): Promise<number>;
+  getAllUserIds(): Promise<number[]>;
 }
 
 export class SupabaseStorage implements IStorage {
@@ -447,6 +453,87 @@ export class SupabaseStorage implements IStorage {
       .limit(100);
     if (error) throw new Error(error.message);
     return (data || []) as SpotOrder[];
+  }
+
+  async createDailySnapshot(userId: number, date: string, totalBalanceUsdt: string): Promise<DailySnapshot> {
+    const existing = await this.getDailySnapshot(userId, date);
+    if (existing) {
+      const { data, error } = await supabase
+        .from("daily_snapshots")
+        .update({ total_balance_usdt: totalBalanceUsdt })
+        .eq("user_id", userId)
+        .eq("date", date)
+        .select()
+        .single();
+      if (error || !data) throw new Error(error?.message || "Failed to update snapshot");
+      return data as DailySnapshot;
+    }
+    const { data, error } = await supabase
+      .from("daily_snapshots")
+      .insert({ user_id: userId, date, total_balance_usdt: totalBalanceUsdt })
+      .select()
+      .single();
+    if (error || !data) throw new Error(error?.message || "Failed to create snapshot");
+    return data as DailySnapshot;
+  }
+
+  async getDailySnapshot(userId: number, date: string): Promise<DailySnapshot | undefined> {
+    const { data, error } = await supabase
+      .from("daily_snapshots")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("date", date)
+      .single();
+    if (error || !data) return undefined;
+    return data as DailySnapshot;
+  }
+
+  async getUserTotalDeposited(userId: number): Promise<number> {
+    const { data: txDeposits } = await supabase
+      .from("transactions")
+      .select("amount")
+      .eq("user_id", userId)
+      .eq("type", "deposit")
+      .eq("status", "completed");
+
+    const { data: inrDeposits } = await supabase
+      .from("inr_transactions")
+      .select("amount")
+      .eq("user_id", userId)
+      .eq("type", "deposit")
+      .eq("status", "completed");
+
+    const txTotal = (txDeposits || []).reduce((s, t: any) => s + parseFloat(t.amount || "0"), 0);
+    const inrTotal = (inrDeposits || []).reduce((s, t: any) => s + parseFloat(t.amount || "0"), 0);
+    return txTotal + inrTotal;
+  }
+
+  async getUserTotalWithdrawn(userId: number): Promise<number> {
+    const { data: txWithdrawals } = await supabase
+      .from("transactions")
+      .select("amount")
+      .eq("user_id", userId)
+      .eq("type", "withdraw")
+      .eq("status", "completed");
+
+    const { data: inrWithdrawals } = await supabase
+      .from("inr_transactions")
+      .select("amount")
+      .eq("user_id", userId)
+      .eq("type", "withdraw")
+      .eq("status", "completed");
+
+    const txTotal = (txWithdrawals || []).reduce((s, t: any) => s + parseFloat(t.amount || "0"), 0);
+    const inrTotal = (inrWithdrawals || []).reduce((s, t: any) => s + parseFloat(t.amount || "0"), 0);
+    return txTotal + inrTotal;
+  }
+
+  async getAllUserIds(): Promise<number[]> {
+    const { data, error } = await supabase
+      .from("users")
+      .select("id");
+    if (error) throw new Error(error.message);
+    return (data || []).map((u: any) => u.id);
   }
 }
 

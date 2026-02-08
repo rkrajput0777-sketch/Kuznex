@@ -17,10 +17,13 @@ import {
   Users,
   X,
   BarChart3,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
-import type { UserWallet } from "@shared/schema";
+import type { UserWallet, UserStats } from "@shared/schema";
 import kuznexLogo from "@assets/image_1770554564085.png";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useRef, useEffect } from "react";
 
 const CURRENCY_LABELS: Record<string, string> = {
   INR: "Indian Rupee",
@@ -44,6 +47,33 @@ export default function Dashboard() {
     queryKey: ["/api/prices"],
     refetchInterval: 30000,
   });
+
+  const { data: userStats } = useQuery<UserStats>({
+    queryKey: ["/api/user/stats"],
+    enabled: !!user,
+    refetchInterval: 60000,
+  });
+
+  const tiltRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = tiltRef.current;
+    if (!el) return;
+    let tiltInstance: any = null;
+    import("vanilla-tilt").then((VanillaTilt) => {
+      if (el) {
+        VanillaTilt.default.init(el, {
+          max: 8,
+          speed: 400,
+          glare: true,
+          "max-glare": 0.15,
+          scale: 1.02,
+          perspective: 1000,
+        });
+        tiltInstance = (el as any).vanillaTilt;
+      }
+    });
+    return () => { tiltInstance?.destroy(); };
+  }, []);
 
   if (authLoading) {
     return (
@@ -201,20 +231,77 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <Card className="mb-8 p-6 bg-primary/5 border-primary/20">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Total Portfolio Value</p>
-              <p className="text-3xl font-bold text-foreground" data-testid="text-total-value">
-                {walletsLoading ? "Loading..." : `₹${totalInrValue.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4 text-primary" />
-              <span className="text-sm text-primary font-medium">Secured</span>
+        <div
+          ref={tiltRef}
+          className="mb-8 rounded-xl overflow-visible"
+          style={{ transformStyle: "preserve-3d" }}
+          data-testid="card-portfolio-3d"
+        >
+          <div
+            className="relative p-6 rounded-xl border border-white/20 dark:border-white/10"
+            style={{
+              background: "linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(99, 102, 241, 0.08) 50%, rgba(59, 130, 246, 0.15) 100%)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              boxShadow: "0 8px 32px rgba(37, 99, 235, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+            }}
+          >
+            <div className="absolute inset-0 rounded-xl opacity-30 pointer-events-none"
+              style={{
+                background: "radial-gradient(ellipse at 20% 50%, rgba(59, 130, 246, 0.2), transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(99, 102, 241, 0.15), transparent 50%)",
+              }}
+            />
+            <div className="relative" style={{ transform: "translateZ(30px)" }}>
+              <div className="flex items-start justify-between flex-wrap gap-4 mb-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1 flex items-center gap-2">
+                    <Shield className="w-3.5 h-3.5 text-primary" />
+                    Total Portfolio Value
+                  </p>
+                  <p className="text-3xl font-bold text-foreground" data-testid="text-total-value">
+                    {walletsLoading ? "Loading..." : `₹${totalInrValue.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`}
+                  </p>
+                  {userStats && (
+                    <p className="text-sm text-muted-foreground mt-0.5" data-testid="text-total-usdt">
+                      ~${userStats.totalBalanceUsdt.toLocaleString("en-US", { maximumFractionDigits: 2 })} USD
+                    </p>
+                  )}
+                </div>
+
+                {userStats && (
+                  <div
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
+                      userStats.change24hAmount >= 0
+                        ? "bg-green-500/10 border-green-500/20 text-green-600 dark:text-green-400"
+                        : "bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400"
+                    }`}
+                    style={{ transform: "translateZ(40px)" }}
+                    data-testid="badge-24h-pnl"
+                  >
+                    {userStats.change24hAmount >= 0 ? (
+                      <TrendingUp className="w-4 h-4" />
+                    ) : (
+                      <TrendingDown className="w-4 h-4" />
+                    )}
+                    <span className="text-sm font-semibold whitespace-nowrap">
+                      {userStats.change24hAmount >= 0 ? "+" : ""}${Math.abs(userStats.change24hAmount).toFixed(2)}
+                      {" "}({userStats.change24hPercent >= 0 ? "+" : ""}{userStats.change24hPercent.toFixed(1)}%)
+                    </span>
+                    <span className="text-xs opacity-70">24h</span>
+                  </div>
+                )}
+              </div>
+
+              {userStats && (
+                <div className="flex items-center gap-6 text-xs text-muted-foreground pt-3 border-t border-white/10 flex-wrap" data-testid="stats-mini">
+                  <span>Total Deposited: <span className="text-foreground font-medium">${userStats.totalDeposited.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span></span>
+                  <span>Total Withdrawn: <span className="text-foreground font-medium">${userStats.totalWithdrawn.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span></span>
+                  <span>Net: <span className={`font-medium ${(userStats.totalDeposited - userStats.totalWithdrawn) >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>${(userStats.totalDeposited - userStats.totalWithdrawn).toLocaleString("en-US", { maximumFractionDigits: 2 })}</span></span>
+                </div>
+              )}
             </div>
           </div>
-        </Card>
+        </div>
 
         {user.kycStatus !== "verified" && (
           <Card className="mb-6 p-4 border-yellow-200 bg-yellow-50" data-testid="card-kyc-banner">

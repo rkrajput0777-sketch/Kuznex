@@ -998,5 +998,120 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/user/stats", requireAuth, async (req: any, res) => {
+    try {
+      const userId = getEffectiveUserId(req);
+      const wallets = await storage.getWallets(userId);
+
+      let priceMap: Record<string, number> = { USDT: 1, INR: 0 };
+      try {
+        const ids = Object.values(COINGECKO_IDS).join(",");
+        const priceResp = await axios.get(
+          `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`,
+          { timeout: 10000 }
+        );
+        for (const [symbol, geckoId] of Object.entries(COINGECKO_IDS)) {
+          priceMap[symbol] = priceResp.data?.[geckoId]?.usd || 0;
+        }
+      } catch {
+        priceMap = { USDT: 1, INR: 0, BTC: 0, ETH: 0, BNB: 0 };
+      }
+
+      const totalBalanceUsdt = wallets.reduce((sum, w) => {
+        const bal = parseFloat(w.balance);
+        if (bal === 0 || w.currency === "INR") return sum;
+        const usdPrice = priceMap[w.currency] || 0;
+        return sum + bal * usdPrice;
+      }, 0);
+
+      const yesterday = new Date();
+      yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split("T")[0];
+      const snapshot = await storage.getDailySnapshot(userId, yesterdayStr);
+      const yesterdayBalance = snapshot ? parseFloat(snapshot.total_balance_usdt) : 0;
+
+      let change24hAmount = totalBalanceUsdt - yesterdayBalance;
+      let change24hPercent = 0;
+      if (yesterdayBalance > 0) {
+        change24hPercent = (change24hAmount / yesterdayBalance) * 100;
+      } else if (totalBalanceUsdt > 0) {
+        change24hPercent = 100;
+      }
+
+      const totalDeposited = await storage.getUserTotalDeposited(userId);
+      const totalWithdrawn = await storage.getUserTotalWithdrawn(userId);
+
+      res.json({
+        totalDeposited,
+        totalWithdrawn,
+        change24hAmount: parseFloat(change24hAmount.toFixed(2)),
+        change24hPercent: parseFloat(change24hPercent.toFixed(2)),
+        totalBalanceUsdt: parseFloat(totalBalanceUsdt.toFixed(2)),
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/user-stats", requireAuth, async (req: any, res) => {
+    try {
+      if (!req.user?.is_admin) return res.status(403).json({ message: "Admin only" });
+
+      const usersWithWallets = await storage.getAllUsersWithWallets();
+
+      let priceMap: Record<string, number> = { USDT: 1, INR: 0 };
+      try {
+        const ids = Object.values(COINGECKO_IDS).join(",");
+        const priceResp = await axios.get(
+          `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`,
+          { timeout: 10000 }
+        );
+        for (const [symbol, geckoId] of Object.entries(COINGECKO_IDS)) {
+          priceMap[symbol] = priceResp.data?.[geckoId]?.usd || 0;
+        }
+      } catch {}
+
+      const yesterday = new Date();
+      yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split("T")[0];
+
+      const stats = await Promise.all(
+        usersWithWallets.map(async (u) => {
+          const totalBalanceUsdt = u.wallets.reduce((sum, w) => {
+            const bal = parseFloat(w.balance);
+            if (bal === 0 || w.currency === "INR") return sum;
+            return sum + bal * (priceMap[w.currency] || 0);
+          }, 0);
+
+          const snapshot = await storage.getDailySnapshot(u.id, yesterdayStr);
+          const yesterdayBalance = snapshot ? parseFloat(snapshot.total_balance_usdt) : 0;
+          let change24hPercent = 0;
+          if (yesterdayBalance > 0) {
+            change24hPercent = ((totalBalanceUsdt - yesterdayBalance) / yesterdayBalance) * 100;
+          } else if (totalBalanceUsdt > 0) {
+            change24hPercent = 100;
+          }
+
+          const totalDeposited = await storage.getUserTotalDeposited(u.id);
+          const totalWithdrawn = await storage.getUserTotalWithdrawn(u.id);
+
+          return {
+            userId: u.id,
+            netDeposit: parseFloat((totalDeposited - totalWithdrawn).toFixed(2)),
+            change24hPercent: parseFloat(change24hPercent.toFixed(2)),
+            totalDeposited: parseFloat(totalDeposited.toFixed(2)),
+            totalWithdrawn: parseFloat(totalWithdrawn.toFixed(2)),
+          };
+        })
+      );
+
+      const statsMap: Record<number, typeof stats[0]> = {};
+      for (const s of stats) statsMap[s.userId] = s;
+      res.json(statsMap);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return httpServer;
 }

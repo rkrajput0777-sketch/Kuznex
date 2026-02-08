@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { startDepositWatcher } from "./watcher";
+import { startSnapshotCron } from "./snapshot-cron";
 
 function validateRequiredSecrets(): void {
   const required: Array<{ key: string; label: string }> = [
@@ -144,6 +145,7 @@ app.use((req, res, next) => {
     () => {
       log(`serving on port ${port}`);
       startDepositWatcher(60000);
+      startSnapshotCron();
     },
   );
 })();

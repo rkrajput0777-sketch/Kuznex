@@ -6,10 +6,11 @@ import { Card } from "@/components/ui/card";
 import {
   Loader2,
   ArrowLeft,
-  UserCheck,
   Eye,
   Shield,
   Users,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -26,6 +27,14 @@ interface AdminUser {
   wallets: { currency: string; balance: string }[];
 }
 
+interface UserAnalytics {
+  userId: number;
+  netDeposit: number;
+  change24hPercent: number;
+  totalDeposited: number;
+  totalWithdrawn: number;
+}
+
 export default function AdminUsers() {
   const { data: user, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
@@ -34,6 +43,12 @@ export default function AdminUsers() {
   const { data: allUsers, isLoading: usersLoading } = useQuery<AdminUser[]>({
     queryKey: ["/api/admin/users"],
     enabled: !!user?.isAdmin,
+  });
+
+  const { data: userStatsMap } = useQuery<Record<number, UserAnalytics>>({
+    queryKey: ["/api/admin/user-stats"],
+    enabled: !!user?.isAdmin,
+    refetchInterval: 120000,
   });
 
   const impersonateMutation = useMutation({
@@ -76,10 +91,6 @@ export default function AdminUsers() {
       default:
         return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800" data-testid={`badge-kyc-${status}`}>Pending</span>;
     }
-  };
-
-  const getTotalBalance = (wallets: { currency: string; balance: string }[]) => {
-    return wallets.reduce((sum, w) => sum + parseFloat(w.balance || "0"), 0);
   };
 
   return (
@@ -128,62 +139,101 @@ export default function AdminUsers() {
                     <th className="text-left p-4 font-medium text-muted-foreground">Name & Email</th>
                     <th className="text-left p-4 font-medium text-muted-foreground">KYC Status</th>
                     <th className="text-left p-4 font-medium text-muted-foreground">Wallet Balance</th>
+                    <th className="text-left p-4 font-medium text-muted-foreground">Net Deposit</th>
+                    <th className="text-left p-4 font-medium text-muted-foreground">24h Activity</th>
                     <th className="text-left p-4 font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {allUsers?.map((u) => (
-                    <tr key={u.id} className="border-b border-border/50 hover-elevate" data-testid={`row-user-${u.id}`}>
-                      <td className="p-4 text-muted-foreground">
-                        {new Date(u.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
-                      </td>
-                      <td className="p-4">
-                        <span className="font-mono text-sm text-primary font-medium" data-testid={`text-user-kuznex-id-${u.id}`}>
-                          {u.kuznexId || "N/A"}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <div>
-                          <p className="font-medium text-foreground">{u.username}</p>
-                          <p className="text-xs text-muted-foreground">{u.email}</p>
-                        </div>
-                      </td>
-                      <td className="p-4">{getKycBadge(u.kycStatus)}</td>
-                      <td className="p-4">
-                        <div className="space-y-0.5">
-                          {u.wallets.filter(w => parseFloat(w.balance) > 0).length > 0 ? (
-                            u.wallets.filter(w => parseFloat(w.balance) > 0).map(w => (
-                              <p key={w.currency} className="text-xs text-muted-foreground">
-                                <span className="font-medium text-foreground">{parseFloat(w.balance).toFixed(w.currency === "INR" ? 2 : 8)}</span> {w.currency}
-                              </p>
-                            ))
-                          ) : (
-                            <p className="text-xs text-muted-foreground">No balance</p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        {!u.isAdmin && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => impersonateMutation.mutate(u.id)}
-                            disabled={impersonateMutation.isPending}
-                            data-testid={`button-impersonate-${u.id}`}
-                          >
-                            <Eye className="w-3.5 h-3.5 mr-1.5" />
-                            Login As User
-                          </Button>
-                        )}
-                        {u.isAdmin && (
-                          <span className="inline-flex items-center gap-1 text-xs text-primary">
-                            <Shield className="w-3.5 h-3.5" />
-                            Admin
+                  {allUsers?.map((u) => {
+                    const stats = userStatsMap?.[u.id];
+                    const netDeposit = stats?.netDeposit ?? 0;
+                    const change24h = stats?.change24hPercent ?? 0;
+
+                    return (
+                      <tr key={u.id} className="border-b border-border/50 hover-elevate" data-testid={`row-user-${u.id}`}>
+                        <td className="p-4 text-muted-foreground">
+                          {new Date(u.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                        </td>
+                        <td className="p-4">
+                          <span className="font-mono text-sm text-primary font-medium" data-testid={`text-user-kuznex-id-${u.id}`}>
+                            {u.kuznexId || "N/A"}
                           </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="p-4">
+                          <div>
+                            <p className="font-medium text-foreground">{u.username}</p>
+                            <p className="text-xs text-muted-foreground">{u.email}</p>
+                          </div>
+                        </td>
+                        <td className="p-4">{getKycBadge(u.kycStatus)}</td>
+                        <td className="p-4">
+                          <div className="space-y-0.5">
+                            {u.wallets.filter(w => parseFloat(w.balance) > 0).length > 0 ? (
+                              u.wallets.filter(w => parseFloat(w.balance) > 0).map(w => (
+                                <p key={w.currency} className="text-xs text-muted-foreground">
+                                  <span className="font-medium text-foreground">{parseFloat(w.balance).toFixed(w.currency === "INR" ? 2 : 8)}</span> {w.currency}
+                                </p>
+                              ))
+                            ) : (
+                              <p className="text-xs text-muted-foreground">No balance</p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-4" data-testid={`text-net-deposit-${u.id}`}>
+                          {stats ? (
+                            <div>
+                              <p className={`font-medium text-sm ${netDeposit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                                {netDeposit >= 0 ? "+" : ""}${netDeposit.toLocaleString("en-US", { maximumFractionDigits: 2 })}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {netDeposit > 500 && <span className="text-green-600 font-medium">Whale</span>}
+                                {netDeposit < 0 && <span className="text-red-600 font-medium">Risk</span>}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">--</span>
+                          )}
+                        </td>
+                        <td className="p-4" data-testid={`text-24h-activity-${u.id}`}>
+                          {stats ? (
+                            <div className="flex items-center gap-1">
+                              {change24h >= 0 ? (
+                                <TrendingUp className={`w-3.5 h-3.5 ${change24h > 0 ? "text-green-600" : "text-muted-foreground"}`} />
+                              ) : (
+                                <TrendingDown className="w-3.5 h-3.5 text-red-600" />
+                              )}
+                              <span className={`text-sm font-medium ${change24h > 0 ? "text-green-600" : change24h < 0 ? "text-red-600" : "text-muted-foreground"}`}>
+                                {change24h >= 0 ? "+" : ""}{change24h.toFixed(1)}%
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">--</span>
+                          )}
+                        </td>
+                        <td className="p-4">
+                          {!u.isAdmin && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => impersonateMutation.mutate(u.id)}
+                              disabled={impersonateMutation.isPending}
+                              data-testid={`button-impersonate-${u.id}`}
+                            >
+                              <Eye className="w-3.5 h-3.5 mr-1.5" />
+                              Login As User
+                            </Button>
+                          )}
+                          {u.isAdmin && (
+                            <span className="inline-flex items-center gap-1 text-xs text-primary">
+                              <Shield className="w-3.5 h-3.5" />
+                              Admin
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
