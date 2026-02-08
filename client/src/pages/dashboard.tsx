@@ -1,3 +1,4 @@
+import { useRef, useEffect } from "react";
 import { useAuth, useLogout } from "@/lib/auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
@@ -24,7 +25,6 @@ import {
 import type { UserWallet, UserStats } from "@shared/schema";
 import kuznexLogo from "@assets/image_1770554564085.png";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { useRef, useEffect } from "react";
 
 const CURRENCY_LABELS: Record<string, string> = {
   INR: "Indian Rupee",
@@ -88,6 +88,12 @@ export default function Dashboard() {
     return () => { tiltInstance?.destroy(); };
   }, []);
 
+  useEffect(() => {
+    if (!authLoading && !user) {
+      setLocation("/login");
+    }
+  }, [authLoading, user, setLocation]);
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -97,7 +103,6 @@ export default function Dashboard() {
   }
 
   if (!user) {
-    setLocation("/login");
     return null;
   }
 

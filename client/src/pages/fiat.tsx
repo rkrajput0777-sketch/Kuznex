@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useAuth, useLogout } from "@/lib/auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
@@ -113,10 +114,17 @@ export default function FiatPage() {
     },
   });
 
+  useEffect(() => {
+    if (!authLoading && !user) {
+      setLocation("/login");
+    }
+  }, [authLoading, user, setLocation]);
+
   if (authLoading) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   }
-  if (!user) { setLocation("/login"); return null; }
+
+  if (!user) { return null; }
 
   const usdtWallet = wallets?.find(w => w.currency === "USDT");
   const usdtBalance = usdtWallet ? parseFloat(usdtWallet.balance) : 0;

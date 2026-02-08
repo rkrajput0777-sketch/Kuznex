@@ -1,9 +1,25 @@
 import { storage } from "./storage";
 import { COINGECKO_IDS } from "@shared/constants";
+import { supabase } from "./supabase";
 import axios from "axios";
+
+async function isDailySnapshotsTableReady(): Promise<boolean> {
+  try {
+    const { error } = await supabase.from("daily_snapshots").select("id").limit(1);
+    return !error;
+  } catch {
+    return false;
+  }
+}
 
 async function takeAllSnapshots() {
   try {
+    const tableReady = await isDailySnapshotsTableReady();
+    if (!tableReady) {
+      console.log("[Snapshot] daily_snapshots table not found. Skipping. Run the SQL migration in Supabase SQL Editor.");
+      return;
+    }
+
     const today = new Date().toISOString().split("T")[0];
     const userIds = await storage.getAllUserIds();
 

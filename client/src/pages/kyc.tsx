@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
@@ -90,6 +90,12 @@ export default function KycPage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!authLoading && !user) {
+      setLocation("/login");
+    }
+  }, [authLoading, user, setLocation]);
+
   if (authLoading || kycLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -99,7 +105,6 @@ export default function KycPage() {
   }
 
   if (!user) {
-    setLocation("/login");
     return null;
   }
 

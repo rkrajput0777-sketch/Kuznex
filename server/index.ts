@@ -6,6 +6,7 @@ import { startDepositWatcher } from "./watcher";
 import { startSnapshotCron } from "./snapshot-cron";
 import { storage } from "./storage";
 import { SUPER_ADMIN_EMAIL } from "@shared/constants";
+import { runAutoMigration } from "./migrate";
 
 function validateRequiredSecrets(): void {
   const required: Array<{ key: string; label: string }> = [
@@ -171,8 +172,9 @@ app.use((req, res, next) => {
       host: "0.0.0.0",
       reusePort: true,
     },
-    () => {
+    async () => {
       log(`serving on port ${port}`);
+      await runAutoMigration();
       startDepositWatcher(60000);
       startSnapshotCron();
       seedTestData();

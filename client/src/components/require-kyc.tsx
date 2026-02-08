@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,12 @@ export default function RequireKYC({ children }: { children: React.ReactNode }) 
   const { data: user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
 
+  useEffect(() => {
+    if (!isLoading && !user) {
+      setLocation("/login");
+    }
+  }, [isLoading, user, setLocation]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -17,7 +24,6 @@ export default function RequireKYC({ children }: { children: React.ReactNode }) 
   }
 
   if (!user) {
-    setLocation("/login");
     return null;
   }
 

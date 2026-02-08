@@ -1,10 +1,7 @@
--- =============================================================================
--- Kuznex Platform - Complete Supabase Migration
--- Run this ENTIRE script in Supabase SQL Editor for full setup
--- Safe to run multiple times (uses IF NOT EXISTS and conflict handling)
--- =============================================================================
+import pg from "pg";
 
--- 1. USERS TABLE
+const MIGRATION_SQL = `
+-- Create all tables if they don't exist
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
   kuznex_id TEXT UNIQUE,
@@ -18,7 +15,6 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 2. USER WALLETS TABLE
 CREATE TABLE IF NOT EXISTS user_wallets (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -29,7 +25,6 @@ CREATE TABLE IF NOT EXISTS user_wallets (
   UNIQUE(user_id, currency)
 );
 
--- 3. SWAP HISTORY TABLE
 CREATE TABLE IF NOT EXISTS swap_history (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -45,7 +40,6 @@ CREATE TABLE IF NOT EXISTS swap_history (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 4. CRYPTO DEPOSITS TABLE
 CREATE TABLE IF NOT EXISTS crypto_deposits (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -57,7 +51,6 @@ CREATE TABLE IF NOT EXISTS crypto_deposits (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 5. INR TRANSACTIONS TABLE
 CREATE TABLE IF NOT EXISTS inr_transactions (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -73,7 +66,6 @@ CREATE TABLE IF NOT EXISTS inr_transactions (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 6. TRANSACTIONS TABLE (Withdrawals)
 CREATE TABLE IF NOT EXISTS transactions (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -93,7 +85,6 @@ CREATE TABLE IF NOT EXISTS transactions (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 7. SPOT ORDERS TABLE
 CREATE TABLE IF NOT EXISTS spot_orders (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -107,7 +98,6 @@ CREATE TABLE IF NOT EXISTS spot_orders (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 8. DAILY SNAPSHOTS TABLE (Portfolio Analytics)
 CREATE TABLE IF NOT EXISTS daily_snapshots (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -117,7 +107,6 @@ CREATE TABLE IF NOT EXISTS daily_snapshots (
   UNIQUE(user_id, date)
 );
 
--- 9. CONTACT MESSAGES TABLE
 CREATE TABLE IF NOT EXISTS contact_messages (
   id SERIAL PRIMARY KEY,
   user_id INTEGER,
@@ -129,7 +118,6 @@ CREATE TABLE IF NOT EXISTS contact_messages (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 10. FIAT TRANSACTIONS TABLE (Buy/Sell USDT with Admin Approval)
 CREATE TABLE IF NOT EXISTS fiat_transactions (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -150,7 +138,6 @@ CREATE TABLE IF NOT EXISTS fiat_transactions (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 11. PLATFORM SETTINGS TABLE (Admin-configurable rates)
 CREATE TABLE IF NOT EXISTS platform_settings (
   id SERIAL PRIMARY KEY,
   key TEXT NOT NULL UNIQUE,
@@ -158,10 +145,7 @@ CREATE TABLE IF NOT EXISTS platform_settings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- =============================================================================
--- ADD MISSING COLUMNS TO EXISTING TABLES (safe - skips if already exists)
--- =============================================================================
-
+-- Add missing columns to existing tables (safe - does nothing if column already exists)
 DO $$ BEGIN ALTER TABLE swap_history ADD COLUMN tds_amount TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 DO $$ BEGIN ALTER TABLE swap_history ADD COLUMN net_payout TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 DO $$ BEGIN ALTER TABLE inr_transactions ADD COLUMN tds_amount TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
@@ -173,46 +157,29 @@ DO $$ BEGIN ALTER TABLE transactions ADD COLUMN withdraw_address TEXT; EXCEPTION
 DO $$ BEGIN ALTER TABLE transactions ADD COLUMN admin_note TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 DO $$ BEGIN ALTER TABLE transactions ADD COLUMN updated_at TIMESTAMPTZ DEFAULT NOW(); EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
--- =============================================================================
--- INDEXES
--- =============================================================================
-
+-- Indexes
 CREATE INDEX IF NOT EXISTS idx_user_wallets_user_id ON user_wallets(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_wallets_currency ON user_wallets(user_id, currency);
 CREATE INDEX IF NOT EXISTS idx_swap_history_user_id ON swap_history(user_id);
-CREATE INDEX IF NOT EXISTS idx_swap_history_created ON swap_history(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_crypto_deposits_user_id ON crypto_deposits(user_id);
 CREATE INDEX IF NOT EXISTS idx_crypto_deposits_tx_hash ON crypto_deposits(tx_hash);
-CREATE INDEX IF NOT EXISTS idx_crypto_deposits_status ON crypto_deposits(status);
 CREATE INDEX IF NOT EXISTS idx_inr_transactions_user_id ON inr_transactions(user_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
 CREATE INDEX IF NOT EXISTS idx_spot_orders_user_id ON spot_orders(user_id);
-CREATE INDEX IF NOT EXISTS idx_spot_orders_pair ON spot_orders(pair);
-CREATE INDEX IF NOT EXISTS idx_spot_orders_created ON spot_orders(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_daily_snapshots_user_date ON daily_snapshots(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_contact_messages_status ON contact_messages(status);
 CREATE INDEX IF NOT EXISTS idx_fiat_transactions_user_id ON fiat_transactions(user_id);
 CREATE INDEX IF NOT EXISTS idx_fiat_transactions_status ON fiat_transactions(status);
-CREATE INDEX IF NOT EXISTS idx_fiat_transactions_type ON fiat_transactions(type);
-CREATE INDEX IF NOT EXISTS idx_fiat_transactions_created ON fiat_transactions(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_users_kuznex_id ON users(kuznex_id);
 
--- =============================================================================
--- SEED DEFAULT PLATFORM SETTINGS
--- =============================================================================
-
+-- Seed default platform settings
 INSERT INTO platform_settings (key, value, updated_at)
 VALUES
   ('usdt_buy_rate', '92', NOW()),
   ('usdt_sell_rate', '90', NOW())
 ON CONFLICT (key) DO NOTHING;
 
--- =============================================================================
--- DISABLE ROW LEVEL SECURITY (required for server-side anon key access)
--- =============================================================================
-
+-- Disable RLS for server-side access
 ALTER TABLE users DISABLE ROW LEVEL SECURITY;
 ALTER TABLE user_wallets DISABLE ROW LEVEL SECURITY;
 ALTER TABLE swap_history DISABLE ROW LEVEL SECURITY;
@@ -224,7 +191,95 @@ ALTER TABLE daily_snapshots DISABLE ROW LEVEL SECURITY;
 ALTER TABLE contact_messages DISABLE ROW LEVEL SECURITY;
 ALTER TABLE fiat_transactions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE platform_settings DISABLE ROW LEVEL SECURITY;
+`;
 
--- =============================================================================
--- DONE! All 11 tables created with indexes, columns, and default settings.
--- =============================================================================
+function resolveSupabaseUrl(): string {
+  let supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  let supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+
+  if (supabaseUrl.startsWith("eyJ") && supabaseKey.startsWith("http")) {
+    const temp = supabaseUrl;
+    supabaseUrl = supabaseKey;
+    supabaseKey = temp;
+  } else if (supabaseUrl.startsWith("eyJ") && !supabaseKey.startsWith("http")) {
+    supabaseUrl = `https://${supabaseKey}.supabase.co`;
+  }
+
+  if (!supabaseUrl.startsWith("http")) {
+    supabaseUrl = `https://${supabaseUrl}`;
+  }
+
+  return supabaseUrl;
+}
+
+export async function runAutoMigration(): Promise<void> {
+  const dbPassword = process.env.SUPABASE_DB_PASSWORD;
+
+  if (!dbPassword) {
+    console.log("[Migration] SUPABASE_DB_PASSWORD not set, skipping auto-migration.");
+    console.log("[Migration] Run supabase-migration-complete.sql manually in Supabase SQL Editor.");
+    return;
+  }
+
+  const supabaseUrl = resolveSupabaseUrl();
+  let projectRef = "";
+  try {
+    const url = new URL(supabaseUrl);
+    projectRef = url.hostname.split(".")[0];
+  } catch {
+    console.error("[Migration] Cannot parse Supabase URL, skipping auto-migration.");
+    return;
+  }
+
+  if (!projectRef) {
+    console.error("[Migration] Cannot extract project ref, skipping.");
+    return;
+  }
+
+  console.log(`[Migration] Project ref: ${projectRef}`);
+
+  const connectionStrings = [
+    `postgresql://postgres.${projectRef}:${dbPassword}@aws-0-ap-south-1.pooler.supabase.com:6543/postgres`,
+    `postgresql://postgres.${projectRef}:${dbPassword}@aws-0-us-east-1.pooler.supabase.com:6543/postgres`,
+    `postgresql://postgres.${projectRef}:${dbPassword}@aws-0-us-west-1.pooler.supabase.com:6543/postgres`,
+    `postgresql://postgres:${dbPassword}@db.${projectRef}.supabase.co:5432/postgres`,
+  ];
+
+  for (const connStr of connectionStrings) {
+    let client: pg.Client | null = null;
+    try {
+      client = new pg.Client({
+        connectionString: connStr,
+        ssl: { rejectUnauthorized: false },
+        connectionTimeoutMillis: 10000,
+      });
+      await client.connect();
+
+      const region = connStr.includes("db.") ? "direct" : connStr.match(/aws-0-([\w-]+)/)?.[1] || "unknown";
+      console.log(`[Migration] Connected to PostgreSQL (${region}).`);
+
+      await client.query(MIGRATION_SQL);
+      console.log("[Migration] All 11 tables and columns verified/created successfully.");
+
+      const tablesResult = await client.query(`
+        SELECT table_name FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+        ORDER BY table_name;
+      `);
+      const tables = tablesResult.rows.map((r: any) => r.table_name);
+      console.log(`[Migration] Tables: ${tables.join(", ")}`);
+
+      await client.end();
+      return;
+    } catch (err: any) {
+      if (client) {
+        try { await client.end(); } catch {}
+      }
+      const region = connStr.includes("db.") ? "direct" : connStr.match(/aws-0-([\w-]+)/)?.[1] || "unknown";
+      console.log(`[Migration] Connection to ${region} failed: ${err.message.substring(0, 80)}`);
+    }
+  }
+
+  console.error("[Migration] All connection attempts failed.");
+  console.log("[Migration] Please run supabase-migration-complete.sql in Supabase SQL Editor.");
+}
