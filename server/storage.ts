@@ -11,6 +11,7 @@ import type {
   InsertSpotOrder,
   DailySnapshot,
   ContactMessage,
+  FiatTransaction,
 } from "@shared/schema";
 import { SUPPORTED_CURRENCIES } from "@shared/constants";
 import bcrypt from "bcrypt";
@@ -62,6 +63,11 @@ export interface IStorage {
   getPlatformSetting(key: string): Promise<string | null>;
   setPlatformSetting(key: string, value: string): Promise<void>;
   getAllPlatformSettings(): Promise<Record<string, string>>;
+  createFiatTransaction(data: Omit<FiatTransaction, "id" | "created_at" | "updated_at">): Promise<FiatTransaction>;
+  getFiatTransactions(userId: number): Promise<FiatTransaction[]>;
+  getAllFiatTransactions(type?: string, status?: string): Promise<(FiatTransaction & { username?: string; email?: string })[]>;
+  updateFiatTransactionStatus(id: number, status: string, adminReply?: string): Promise<FiatTransaction>;
+  getFiatTransaction(id: number): Promise<FiatTransaction | undefined>;
 }
 
 export class SupabaseStorage implements IStorage {
@@ -627,6 +633,70 @@ export class SupabaseStorage implements IStorage {
       settings[row.key] = row.value;
     }
     return settings;
+  }
+
+  async createFiatTransaction(data: Omit<FiatTransaction, "id" | "created_at" | "updated_at">): Promise<FiatTransaction> {
+    const { data: row, error } = await supabase
+      .from("fiat_transactions")
+      .insert(data)
+      .select()
+      .single();
+    if (error || !row) throw new Error(error?.message || "Failed to create fiat transaction");
+    return row as FiatTransaction;
+  }
+
+  async getFiatTransactions(userId: number): Promise<FiatTransaction[]> {
+    const { data, error } = await supabase
+      .from("fiat_transactions")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data || []) as FiatTransaction[];
+  }
+
+  async getAllFiatTransactions(type?: string, status?: string): Promise<(FiatTransaction & { username?: string; email?: string })[]> {
+    let query = supabase.from("fiat_transactions").select("*").order("created_at", { ascending: false });
+    if (type) query = query.eq("type", type);
+    if (status) query = query.eq("status", status);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+
+    const transactions = (data || []) as FiatTransaction[];
+    const userIds = Array.from(new Set(transactions.map(t => t.user_id)));
+    const usersMap: Record<number, { username: string; email: string }> = {};
+    for (const uid of userIds) {
+      const user = await this.getUser(uid);
+      if (user) usersMap[uid] = { username: user.username, email: user.email };
+    }
+    return transactions.map(t => ({
+      ...t,
+      username: usersMap[t.user_id]?.username,
+      email: usersMap[t.user_id]?.email,
+    }));
+  }
+
+  async updateFiatTransactionStatus(id: number, status: string, adminReply?: string): Promise<FiatTransaction> {
+    const updateData: any = { status, updated_at: new Date().toISOString() };
+    if (adminReply !== undefined) updateData.admin_reply = adminReply;
+    const { data, error } = await supabase
+      .from("fiat_transactions")
+      .update(updateData)
+      .eq("id", id)
+      .select()
+      .single();
+    if (error || !data) throw new Error(error?.message || "Failed to update fiat transaction");
+    return data as FiatTransaction;
+  }
+
+  async getFiatTransaction(id: number): Promise<FiatTransaction | undefined> {
+    const { data, error } = await supabase
+      .from("fiat_transactions")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (error || !data) return undefined;
+    return data as FiatTransaction;
   }
 }
 

@@ -1,0 +1,47 @@
+Act as a Senior Frontend & Backend Developer. We are fixing Branding, Logic, and UI issues for "Kuznex Exchange".
+
+### 1. BRANDING: REMOVE "BINANCE" & ADD "KUZNEX" (Critical)
+The TradingView widget currently shows "BINANCE:BTCUSDT" which looks unprofessional.
+Fix Implementation:
+- In the TradingView Widget configuration, set these properties to TRUE:
+  - hide_top_toolbar: true (This hides the search bar and the "Binance" logo/text).
+  - hide_legend: true (Cleans up the chart).
+  - allow_symbol_change: false (Prevent users from searching Binance pairs directly inside the widget).
+- Custom Header:
+  - Above the Widget, create your OWN Custom Header div.
+  - Content: Display "Kuznex Pro Chart  |  [Current_Pair_Name]  |  Live"
+  - Style: Make it look like a professional exchange header.
+  - This tricks the user into thinking the data is native to Kuznex.
+
+### 2. FIX FIAT BUY LOGIC (Stop "Insufficient Balance" Error)
+- Current Bug: When a user clicks "Buy USDT" with INR, the system checks their wallet balance and says "Insufficient INR".
+- Correct Logic:
+  - Buying USDT is an External Deposit. Users send money from THEIR Bank to OUR Bank.
+  - Action: Remove the check if (user.balance < amount).
+  - New Flow:
+    1. User enters Amount (e.g., 10,000 INR).
+    2. Show Admin Bank Details / UPI ID.
+    3. User makes payment externally.
+    4. User enters UTR Number in a form and submits.
+    5. Save as pending transaction.
+
+### 3. DATABASE & ADMIN REPAIRS
+- Missing Columns: Ensure the fiat_transactions table has:
+  - utr_number (text), screenshot (text), admin_reply (text).
+- Missing Admin Page: Create /admin/fiat-approvals.
+  - Buy Tab: List Pending UTRs -> Admin checks Bank -> Click "Approve" -> Add USDT to User.
+  - Sell Tab: List Pending Withers -> Admin sends Cash -> Click "Complete" -> Deduct USDT.
+
+### 4. INJECT 300+ TRADING PAIRS
+- The current list is too small.
+- Create a hardcoded JSON file pairs.js with Top 300 Crypto Pairs (BTC, ETH, SOL, PEPE, SHIB, DOGE, XRP, ADA, MATIC, DOT, etc.).
+- Ensure the Search Bar in the Trading Page filters through this big list efficiently.
+- When a user clicks a pair (e.g., "PEPE/USDT"), update the Chart symbol to BINANCE:PEPEUSDT (but keep the toolbar hidden so they don't see "Binance").
+
+### 5. UI CLEANUP
+- Separate Pages:
+  - /fiat -> Only for INR Deposit/Withdraw (Bank Transfer).
+  - /wallet -> Only for Crypto Deposit/Withdraw (QR Code).
+- Navigation: Update the Header Menu to show these as separate options.
+
+EXECUTE ALL CHANGES NOW.

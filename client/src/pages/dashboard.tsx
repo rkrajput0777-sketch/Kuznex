@@ -165,16 +165,16 @@ export default function Dashboard() {
                   Swap
                 </Button>
               </Link>
-              <Link href="/deposit">
+              <Link href="/wallet">
                 <Button variant="ghost" size="sm" data-testid="link-nav-deposit">
                   <Download className="w-4 h-4 mr-2" />
-                  Deposit
+                  Crypto
                 </Button>
               </Link>
-              <Link href="/inr">
-                <Button variant="ghost" size="sm" data-testid="link-nav-inr">
+              <Link href="/fiat">
+                <Button variant="ghost" size="sm" data-testid="link-nav-fiat">
                   <Upload className="w-4 h-4 mr-2" />
-                  INR Ramp
+                  Fiat
                 </Button>
               </Link>
               {user.isSuperAdmin && (
@@ -209,6 +209,12 @@ export default function Dashboard() {
                       Rates
                     </Button>
                   </Link>
+                  <Link href="/admin/fiat-approvals">
+                    <Button variant="ghost" size="sm" data-testid="link-nav-admin-fiat">
+                      <Upload className="w-4 h-4 mr-2" />
+                      Fiat Approvals
+                    </Button>
+                  </Link>
                 </>
               )}
             </div>
@@ -233,11 +239,11 @@ export default function Dashboard() {
             <Link href="/swap">
               <Button variant="ghost" size="sm"><ArrowLeftRight className="w-4 h-4 mr-1" /> Swap</Button>
             </Link>
-            <Link href="/deposit">
-              <Button variant="ghost" size="sm"><Download className="w-4 h-4 mr-1" /> Deposit</Button>
+            <Link href="/wallet">
+              <Button variant="ghost" size="sm"><Download className="w-4 h-4 mr-1" /> Crypto</Button>
             </Link>
-            <Link href="/inr">
-              <Button variant="ghost" size="sm"><Upload className="w-4 h-4 mr-1" /> INR</Button>
+            <Link href="/fiat">
+              <Button variant="ghost" size="sm"><Upload className="w-4 h-4 mr-1" /> Fiat</Button>
             </Link>
           </div>
         </div>
@@ -453,15 +459,15 @@ export default function Dashboard() {
               </div>
             </Card>
           </Link>
-          <Link href="/inr">
+          <Link href="/fiat">
             <Card className="p-5 hover-elevate cursor-pointer">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                   <Upload className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium text-foreground">INR Ramp</p>
-                  <p className="text-xs text-muted-foreground">Deposit & Withdraw</p>
+                  <p className="font-medium text-foreground">Buy / Sell USDT</p>
+                  <p className="text-xs text-muted-foreground">Fiat INR Exchange</p>
                 </div>
               </div>
             </Card>

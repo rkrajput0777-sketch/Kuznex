@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import passport from "passport";
 import { storage } from "./storage";
 import { setupAuth, requireAuth } from "./auth";
-import { registerSchema, swapRequestSchema, inrDepositSchema, inrWithdrawSchema, withdrawRequestSchema, spotOrderSchema, contactMessageSchema, usdtBuySellSchema, adminRateSettingsSchema } from "@shared/schema";
+import { registerSchema, swapRequestSchema, inrDepositSchema, inrWithdrawSchema, withdrawRequestSchema, spotOrderSchema, contactMessageSchema, usdtBuySellSchema, adminRateSettingsSchema, fiatBuySchema, fiatSellSchema } from "@shared/schema";
 import { COINGECKO_IDS, SWAP_SPREAD_PERCENT, ADMIN_BANK_DETAILS, SUPPORTED_NETWORKS, SUPPORTED_CHAINS, SPOT_TRADING_FEE, TRADABLE_PAIRS, VIEWABLE_PAIRS, TDS_RATE, EXCHANGE_FEE_RATE, SUPER_ADMIN_EMAIL, type ChainConfig } from "@shared/constants";
 import axios from "axios";
 import multer from "multer";
@@ -567,11 +567,10 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/usdt/buy", requireKycVerifiedOrAdmin, async (req, res) => {
+  app.post("/api/fiat/buy", requireKycVerifiedOrAdmin, async (req, res) => {
     try {
-      const parsed = usdtBuySellSchema.safeParse(req.body);
+      const parsed = fiatBuySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
-      if (parsed.data.type !== "buy") return res.status(400).json({ message: "Invalid type" });
 
       const userId = getEffectiveUserId(req);
       const inrAmount = parseFloat(parsed.data.amount);
@@ -579,25 +578,29 @@ export async function registerRoutes(
 
       const buyRateStr = await storage.getPlatformSetting("usdt_buy_rate");
       const buyRate = parseFloat(buyRateStr || "92");
+      const usdtAmount = inrAmount / buyRate;
 
-      const inrWallet = await storage.getWallet(userId, "INR");
-      if (!inrWallet || parseFloat(inrWallet.balance) < inrAmount) {
-        return res.status(400).json({ message: "Insufficient INR balance" });
-      }
-
-      const usdtReceived = inrAmount / buyRate;
-
-      const newInrBalance = (parseFloat(inrWallet.balance) - inrAmount).toFixed(2);
-      await storage.updateWalletBalance(userId, "INR", newInrBalance);
-
-      const usdtWallet = await storage.getWallet(userId, "USDT");
-      const newUsdtBalance = (parseFloat(usdtWallet?.balance || "0") + usdtReceived).toFixed(8);
-      await storage.updateWalletBalance(userId, "USDT", newUsdtBalance);
+      await storage.createFiatTransaction({
+        user_id: userId,
+        type: "buy",
+        amount: inrAmount.toFixed(2),
+        usdt_amount: usdtAmount.toFixed(8),
+        rate: buyRate.toFixed(2),
+        utr_number: parsed.data.utrNumber,
+        screenshot: null,
+        bank_name: null,
+        account_number: null,
+        ifsc_code: null,
+        status: "pending",
+        admin_reply: null,
+        tds_amount: null,
+        net_payout: null,
+      });
 
       res.json({
-        message: "USDT purchased successfully",
-        inrSpent: inrAmount.toFixed(2),
-        usdtReceived: usdtReceived.toFixed(8),
+        message: "Buy request submitted successfully. Admin will verify your payment and credit USDT.",
+        inrAmount: inrAmount.toFixed(2),
+        estimatedUsdt: usdtAmount.toFixed(2),
         rate: buyRate.toFixed(2),
       });
     } catch (error: any) {
@@ -605,18 +608,14 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/usdt/sell", requireKycVerifiedOrAdmin, async (req, res) => {
+  app.post("/api/fiat/sell", requireKycVerifiedOrAdmin, async (req, res) => {
     try {
-      const parsed = usdtBuySellSchema.safeParse(req.body);
+      const parsed = fiatSellSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
-      if (parsed.data.type !== "sell") return res.status(400).json({ message: "Invalid type" });
 
       const userId = getEffectiveUserId(req);
       const usdtAmount = parseFloat(parsed.data.amount);
       if (isNaN(usdtAmount) || usdtAmount <= 0) return res.status(400).json({ message: "Invalid amount" });
-
-      const sellRateStr = await storage.getPlatformSetting("usdt_sell_rate");
-      const sellRate = parseFloat(sellRateStr || "90");
 
       const usdtWallet = await storage.getWallet(userId, "USDT");
       if (!usdtWallet || parseFloat(usdtWallet.balance) < usdtAmount) {
@@ -630,6 +629,8 @@ export async function registerRoutes(
         return res.status(403).json({ message: "PAN Card verification required for selling USDT as per Govt norms." });
       }
 
+      const sellRateStr = await storage.getPlatformSetting("usdt_sell_rate");
+      const sellRate = parseFloat(sellRateStr || "90");
       const grossInr = usdtAmount * sellRate;
       const tdsAmount = grossInr * TDS_RATE;
       const netInr = grossInr - tdsAmount;
@@ -637,18 +638,113 @@ export async function registerRoutes(
       const newUsdtBalance = (parseFloat(usdtWallet.balance) - usdtAmount).toFixed(8);
       await storage.updateWalletBalance(userId, "USDT", newUsdtBalance);
 
-      const inrWallet = await storage.getWallet(userId, "INR");
-      const newInrBalance = (parseFloat(inrWallet?.balance || "0") + netInr).toFixed(2);
-      await storage.updateWalletBalance(userId, "INR", newInrBalance);
+      await storage.createFiatTransaction({
+        user_id: userId,
+        type: "sell",
+        amount: grossInr.toFixed(2),
+        usdt_amount: usdtAmount.toFixed(8),
+        rate: sellRate.toFixed(2),
+        utr_number: null,
+        screenshot: null,
+        bank_name: parsed.data.bankName,
+        account_number: parsed.data.accountNumber,
+        ifsc_code: parsed.data.ifscCode,
+        status: "pending",
+        admin_reply: null,
+        tds_amount: tdsAmount.toFixed(2),
+        net_payout: netInr.toFixed(2),
+      });
 
       res.json({
-        message: "USDT sold successfully",
+        message: "Sell request submitted. Admin will send INR to your bank account.",
         usdtSold: usdtAmount.toFixed(8),
         grossInr: grossInr.toFixed(2),
         tdsAmount: tdsAmount.toFixed(2),
-        netInrReceived: netInr.toFixed(2),
+        netInr: netInr.toFixed(2),
         rate: sellRate.toFixed(2),
       });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/fiat/history", requireAuth, async (req, res) => {
+    try {
+      const userId = getEffectiveUserId(req);
+      const transactions = await storage.getFiatTransactions(userId);
+      res.json(transactions);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/fiat-transactions", requireAdmin, async (req, res) => {
+    try {
+      const { type, status } = req.query;
+      const transactions = await storage.getAllFiatTransactions(
+        type as string | undefined,
+        status as string | undefined
+      );
+      res.json(transactions);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/fiat-transactions/:id/approve", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id as string);
+      const tx = await storage.getFiatTransaction(id);
+      if (!tx) return res.status(404).json({ message: "Transaction not found" });
+      if (tx.status !== "pending") return res.status(400).json({ message: "Transaction is not pending" });
+
+      if (tx.type === "buy") {
+        const usdtAmount = parseFloat(tx.usdt_amount);
+        const usdtWallet = await storage.getWallet(tx.user_id, "USDT");
+        const newBalance = (parseFloat(usdtWallet?.balance || "0") + usdtAmount).toFixed(8);
+        await storage.updateWalletBalance(tx.user_id, "USDT", newBalance);
+      }
+
+      const adminReply = req.body.adminReply || "Approved";
+      await storage.updateFiatTransactionStatus(id, "approved", adminReply);
+      res.json({ message: `Transaction approved${tx.type === "buy" ? " and USDT credited" : ""}` });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/fiat-transactions/:id/reject", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id as string);
+      const tx = await storage.getFiatTransaction(id);
+      if (!tx) return res.status(404).json({ message: "Transaction not found" });
+      if (tx.status !== "pending") return res.status(400).json({ message: "Transaction is not pending" });
+
+      if (tx.type === "sell") {
+        const usdtAmount = parseFloat(tx.usdt_amount);
+        const usdtWallet = await storage.getWallet(tx.user_id, "USDT");
+        const newBalance = (parseFloat(usdtWallet?.balance || "0") + usdtAmount).toFixed(8);
+        await storage.updateWalletBalance(tx.user_id, "USDT", newBalance);
+      }
+
+      const adminReply = req.body.adminReply || "Rejected";
+      await storage.updateFiatTransactionStatus(id, "rejected", adminReply);
+      res.json({ message: `Transaction rejected${tx.type === "sell" ? " and USDT refunded" : ""}` });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/fiat-transactions/:id/complete", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id as string);
+      const tx = await storage.getFiatTransaction(id);
+      if (!tx) return res.status(404).json({ message: "Transaction not found" });
+      if (tx.status !== "approved") return res.status(400).json({ message: "Transaction must be approved first before marking complete" });
+
+      const adminReply = req.body.adminReply || "Completed";
+      await storage.updateFiatTransactionStatus(id, "completed", adminReply);
+      res.json({ message: "Transaction marked as completed" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

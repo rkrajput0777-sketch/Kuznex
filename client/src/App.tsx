@@ -9,7 +9,7 @@ import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import Swap from "@/pages/swap";
 import Deposit from "@/pages/deposit";
-import InrRamp from "@/pages/inr";
+import FiatPage from "@/pages/fiat";
 import KycPage from "@/pages/kyc";
 import Contact from "@/pages/contact";
 import AdminKycReview from "@/pages/admin-kyc";
@@ -18,6 +18,7 @@ import AdminWithdrawals from "@/pages/admin-withdrawals";
 import AdminTdsReports from "@/pages/admin-tds";
 import AdminMessages from "@/pages/admin-messages";
 import AdminRates from "@/pages/admin-rates";
+import AdminFiatApprovals from "@/pages/admin-fiat";
 import SpotTrade from "@/pages/spot-trade";
 import { PrivacyPolicy, TermsOfService, RiskDisclosure, AmlPolicy, TdsCompliance } from "@/pages/legal";
 import NotFound from "@/pages/not-found";
@@ -55,6 +56,9 @@ function Router() {
       <Route path="/admin/rates">
         <AdminGuard><AdminRates /></AdminGuard>
       </Route>
+      <Route path="/admin/fiat-approvals">
+        <AdminGuard><AdminFiatApprovals /></AdminGuard>
+      </Route>
       <Route path="/trade/:pair">
         {(params: { pair: string }) => (
           <RequireKYC><SpotTrade pair={params.pair} /></RequireKYC>
@@ -66,11 +70,17 @@ function Router() {
       <Route path="/swap">
         <RequireKYC><Swap /></RequireKYC>
       </Route>
+      <Route path="/wallet">
+        <RequireKYC><Deposit /></RequireKYC>
+      </Route>
       <Route path="/deposit">
         <RequireKYC><Deposit /></RequireKYC>
       </Route>
+      <Route path="/fiat">
+        <RequireKYC><FiatPage /></RequireKYC>
+      </Route>
       <Route path="/inr">
-        <RequireKYC><InrRamp /></RequireKYC>
+        <RequireKYC><FiatPage /></RequireKYC>
       </Route>
       <Route component={NotFound} />
     </Switch>

@@ -179,6 +179,38 @@ export const contactMessageSchema = z.object({
   message: z.string().min(10, "Message must be at least 10 characters"),
 });
 
+export interface FiatTransaction {
+  id: number;
+  user_id: number;
+  type: string;
+  amount: string;
+  usdt_amount: string;
+  rate: string;
+  utr_number: string | null;
+  screenshot: string | null;
+  bank_name: string | null;
+  account_number: string | null;
+  ifsc_code: string | null;
+  status: string;
+  admin_reply: string | null;
+  tds_amount: string | null;
+  net_payout: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const fiatBuySchema = z.object({
+  amount: z.string().min(1, "Amount is required").refine(v => !isNaN(Number(v)) && Number(v) > 0, "Amount must be a positive number"),
+  utrNumber: z.string().min(1, "UTR number is required"),
+});
+
+export const fiatSellSchema = z.object({
+  amount: z.string().min(1, "USDT amount is required").refine(v => !isNaN(Number(v)) && Number(v) > 0, "Amount must be a positive number"),
+  bankName: z.string().min(1, "Bank name is required"),
+  accountNumber: z.string().min(1, "Account number is required"),
+  ifscCode: z.string().min(1, "IFSC code is required"),
+});
+
 export interface PlatformSettings {
   id: number;
   key: string;

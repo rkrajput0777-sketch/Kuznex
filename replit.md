@@ -148,6 +148,21 @@ Kuznex is built as a monorepo, separating the application into `client/` (React 
 - `robots.txt` — Disallow auth-gated routes (/swap, /trade, /deposit, /inr, /withdraw, /admin, /dashboard, /kyc)
 - Canonical URL set to `https://kuznex.in/`
 
+### Fiat Buy/Sell USDT (Admin Approval Workflow)
+- **Database Table**: `fiat_transactions` (id, user_id, type, amount, usdt_amount, rate, utr_number, screenshot, bank_name, account_number, ifsc_code, status, admin_reply, tds_amount, net_payout, created_at, updated_at)
+- **Status Values**: `pending`, `approved`, `completed`, `rejected`
+- **Buy Flow**: User transfers INR to platform bank account → submits UTR + amount → admin verifies → approves (credits USDT) or rejects
+- **Sell Flow**: User submits USDT amount + bank details → USDT deducted immediately → admin approves → sends INR manually → marks complete. On rejection, USDT refunded.
+- **TDS**: 1% TDS deducted on sell transactions per Section 194S
+- **Admin Rates**: Configurable buy/sell rates stored in `platform_settings` table (keys: `usdt_buy_rate`, `usdt_sell_rate`)
+- **Routes**: `/fiat` (user INR exchange), `/wallet` (crypto deposits), `/admin/fiat-approvals` (admin panel)
+- **API**: `POST /api/fiat/buy`, `POST /api/fiat/sell`, `GET /api/fiat/history`, `GET /api/admin/fiat-transactions`, `POST /api/admin/fiat-transactions/:id/approve|reject|complete`
+- **Migration**: `supabase-migration-v8-fiat-transactions.sql` — must be run in Supabase SQL Editor
+
+### Spot Trading (300+ Pairs)
+- Expanded from 30 to 300+ trading pairs using Binance `!ticker@arr` WebSocket stream
+- Custom "Kuznex Pro Chart" header replaces Binance branding on TradingView charts
+
 ## Recent Changes (2026-02-08)
 - Rebranded domain from kuznex.com to kuznex.in across all SEO, canonical URLs, OG tags, sitemap, robots.txt
 - Updated all support emails from support@kuznex.com to support@Kuznex.in (contact page, legal pages, meta tags)
@@ -167,3 +182,7 @@ Kuznex is built as a monorepo, separating the application into `client/` (React 
 - Added /api/user/stats endpoint for 24h PnL, total deposits/withdrawals
 - Added /api/admin/user-stats endpoint for bulk user analytics
 - Enhanced admin users panel with Net Deposit, 24h Activity columns, Whale/Risk indicators
+- Added Fiat Buy/Sell USDT with admin approval workflow (fiat_transactions table, /fiat page, /admin/fiat-approvals)
+- Separated /wallet (crypto deposits) and /fiat (INR exchange) pages
+- Expanded spot trading to 300+ pairs with Binance !ticker@arr WebSocket
+- Hidden Binance branding from TradingView charts, added Kuznex Pro Chart header

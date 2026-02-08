@@ -137,21 +137,25 @@ export default function SpotTrade({ pair: initialPair }: { pair: string }) {
   const baseBalance = parseFloat(baseWallet?.balance || "0");
 
   useEffect(() => {
-    const streams = pairsData.map(p => `${p.symbol.toLowerCase()}@ticker`).join("/");
-    if (!streams) return;
+    if (!pairsData.length) return;
 
-    const ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
+    const pairSet = new Set(pairsData.map(p => p.symbol));
+    const ws = new WebSocket("wss://stream.binance.com:9443/ws/!ticker@arr");
     wsRef.current = ws;
 
     ws.onmessage = (event) => {
       try {
-        const msg = JSON.parse(event.data);
-        if (msg.data) {
-          const d = msg.data;
-          setLivePrices(prev => ({
-            ...prev,
-            [d.s]: { s: d.s, c: d.c, P: d.P, h: d.h, l: d.l, v: d.v, q: d.q },
-          }));
+        const tickers = JSON.parse(event.data);
+        if (Array.isArray(tickers)) {
+          setLivePrices(prev => {
+            const updated = { ...prev };
+            for (const d of tickers) {
+              if (pairSet.has(d.s)) {
+                updated[d.s] = { s: d.s, c: d.c, P: d.P, h: d.h, l: d.l, v: d.v, q: d.q };
+              }
+            }
+            return updated;
+          });
         }
       } catch {}
     };
@@ -205,8 +209,8 @@ export default function SpotTrade({ pair: initialPair }: { pair: string }) {
       locale: "en",
       toolbar_bg: "#f1f3f6",
       enable_publishing: false,
-      hide_top_toolbar: false,
-      hide_legend: false,
+      hide_top_toolbar: true,
+      hide_legend: true,
       save_image: false,
       allow_symbol_change: false,
       container_id: "tradingview_chart",
@@ -387,6 +391,16 @@ export default function SpotTrade({ pair: initialPair }: { pair: string }) {
         </div>
 
         <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-background" data-testid="chart-header-kuznex">
+            <span className="text-sm font-bold text-primary tracking-wide">Kuznex Pro Chart</span>
+            <span className="text-muted-foreground text-xs">|</span>
+            <span className="text-sm font-semibold text-foreground">{activePair.replace("USDT", "/USDT")}</span>
+            <span className="text-muted-foreground text-xs">|</span>
+            <span className="flex items-center gap-1 text-xs text-green-600">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              Live
+            </span>
+          </div>
           <div className="flex-1 min-h-0">
             <div
               ref={tvContainerRef}
