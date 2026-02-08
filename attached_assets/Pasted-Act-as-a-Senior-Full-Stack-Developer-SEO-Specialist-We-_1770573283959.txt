@@ -1,0 +1,35 @@
+Act as a Senior Full-Stack Developer & SEO Specialist. We are polishing "Kuznex Exchange" for public launch.
+
+### OBJECTIVE:
+1. Implement a robust Contact Us system (User to Admin).
+2. Create functional Legal & Product Pages linked in the footer.
+3. Optimize the entire site for SEO (Search Engine Optimization) to rank #1 for Indian Crypto keywords.
+
+### 1. DATABASE UPDATE (Contact Support)
+- **Table contact_messages:**
+  - id, user_id (nullable), name, email, subject, message, status (new, replied, archived), created_atRLS Policy:y:** Public can insert; Only Admin (rkrajput0777@gmail.com) can select/view.
+
+### 2. CONTACT US PAGE (/contact)
+- Create a professional form: Name, Email, Subject (Dropdown: Deposit Issue, KYC, Technical, Other), MessageLogic:c:** On submit, save to contact_messages and show "Message Sent! Team Kuznex will reply within 24 hours.Validation:n:** Ensure email format is correct.
+
+### 3. ADMIN SUPPORT PORTAL (/admin/messages)
+- Create a view to list all messagesColumns:s:** Date, Name, Subject, StatusAction:n:** Click to expand/read the full messageReply Button:n:** Opens user's email client (mailto:user@email.com) to reply directlyMark as Read/Archived:d:** To clean up the inbox.
+
+### 4. SEO ENGINE (The "Rank #1" Strategy)
+- **Global Metadata (layout.tsx)Title Template:plate:** %s | Kuznex - India's Most Trusted Crypto Exchange
+  - **Description:** "Buy & Sell Bitcoin, USDT in India with INR. 100% TDS Compliant, Instant Withdrawals, and Best Rates. Join Kuznex Keywords:*Keywords:** "Crypto Exchange India, Buy USDT India, Bitcoin to INR, TDS Compliant Exchange, P2P Crypto Mathura, Kuznex, USDT Price INR, Best Exchange for BeOpenGraph (OG) Tags:(OG) Tags:** Add images and descriptions so links look good when shared on WhatsApp/Sitemap & Robots: & Robots:** Generate sitemap.xml and robots.txt to let Google crawl all pages.
+
+### 5. FOOTER & LEGAL PAGES (Static Content)
+- Create the following routes with professional, placeholder legal text (I will edit specifics later, but generate the structure):
+  - /legal/privacy-policy (Privacy Policy)
+  - /legal/terms (Terms of Service)
+  - /legal/risk-disclosure (Risk Warning)
+  - /legal/aml-policy (Anti-Money Laundering)
+  - /legal/tds-compliance (Explain the 1% TDS deduction logLink Products: Products:**
+  - "Instant Swap" -> /trade
+  - "INR Ramp" -> /deposit
+  - "Portfolio" -> /dashboard
+
+### 6. EXECUTION
+- Ensure the Footer links in the UI actually point to these new pages.
+- Make the Contact Form look clean and trustworthy

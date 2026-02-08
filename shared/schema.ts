@@ -160,3 +160,21 @@ export const spotOrderSchema = z.object({
   side: z.enum(["BUY", "SELL"]),
   amount: z.string().min(1, "Amount is required"),
 });
+
+export interface ContactMessage {
+  id: number;
+  user_id: number | null;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  status: string;
+  created_at: string;
+}
+
+export const contactMessageSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Please enter a valid email address"),
+  subject: z.string().min(1, "Please select a subject"),
+  message: z.string().min(10, "Message must be at least 10 characters"),
+});
