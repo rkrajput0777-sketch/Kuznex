@@ -236,11 +236,11 @@ export default function Swap() {
                 <Card key={swap.id} className="p-4" data-testid={`card-swap-${swap.id}`}>
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-foreground">{parseFloat(swap.fromAmount).toFixed(4)} {swap.fromCurrency}</span>
+                      <span className="text-sm font-medium text-foreground">{parseFloat(swap.from_amount).toFixed(4)} {swap.from_currency}</span>
                       <ArrowLeftRight className="w-3 h-3 text-muted-foreground" />
-                      <span className="text-sm font-medium text-primary">{parseFloat(swap.toAmount).toFixed(4)} {swap.toCurrency}</span>
+                      <span className="text-sm font-medium text-primary">{parseFloat(swap.to_amount).toFixed(4)} {swap.to_currency}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">{new Date(swap.createdAt).toLocaleDateString()}</span>
+                    <span className="text-xs text-muted-foreground">{new Date(swap.created_at).toLocaleDateString()}</span>
                   </div>
                 </Card>
               ))}

@@ -293,7 +293,7 @@ export default function InrRamp() {
                         <p className="text-sm font-medium text-foreground">
                           {tx.type === "deposit" ? "Deposit" : "Withdrawal"} - ₹{parseFloat(tx.amount).toLocaleString("en-IN")}
                         </p>
-                        {tx.utrNumber && <p className="text-xs text-muted-foreground">UTR: {tx.utrNumber}</p>}
+                        {tx.utr_number && <p className="text-xs text-muted-foreground">UTR: {tx.utr_number}</p>}
                       </div>
                     </div>
                     <div className="text-right">
@@ -302,7 +302,7 @@ export default function InrRamp() {
                       }`}>
                         {tx.status}
                       </span>
-                      <p className="text-xs text-muted-foreground mt-1">{new Date(tx.createdAt).toLocaleDateString()}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{new Date(tx.created_at).toLocaleDateString()}</p>
                     </div>
                   </div>
                 </Card>

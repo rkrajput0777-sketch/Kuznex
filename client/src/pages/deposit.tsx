@@ -193,8 +193,8 @@ export default function Deposit() {
                       )}
                       <div>
                         <p className="text-sm font-medium text-foreground">{dep.currency} on {dep.network}</p>
-                        {dep.txHash && (
-                          <p className="text-xs text-muted-foreground font-mono truncate max-w-48">{dep.txHash}</p>
+                        {dep.tx_hash && (
+                          <p className="text-xs text-muted-foreground font-mono truncate max-w-48">{dep.tx_hash}</p>
                         )}
                       </div>
                     </div>

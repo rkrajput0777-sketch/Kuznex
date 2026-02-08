@@ -15,7 +15,7 @@ const kycUpload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
       const impersonatingUserId = (req as any).session?.impersonatingUserId;
-      const userId = (impersonatingUserId && (req as any).user?.isAdmin) ? impersonatingUserId : (req as any).user?.id;
+      const userId = (impersonatingUserId && (req as any).user?.is_admin) ? impersonatingUserId : (req as any).user?.id;
       const dir = path.join("uploads", "kyc", String(userId));
       fs.mkdirSync(dir, { recursive: true });
       cb(null, dir);
@@ -38,14 +38,14 @@ const kycUpload = multer({
 
 function getEffectiveUserId(req: Request): number {
   const impersonatingUserId = (req.session as any).impersonatingUserId;
-  if (impersonatingUserId && req.user?.isAdmin) {
+  if (impersonatingUserId && req.user?.is_admin) {
     return impersonatingUserId;
   }
   return req.user!.id;
 }
 
 function requireAdmin(req: Request, res: Response, next: NextFunction) {
-  if (!req.isAuthenticated() || !req.user?.isAdmin) {
+  if (!req.isAuthenticated() || !req.user?.is_admin) {
     return res.status(403).json({ message: "Admin access required" });
   }
   next();
@@ -55,10 +55,10 @@ async function requireKycVerifiedOrAdmin(req: Request, res: Response, next: Next
   if (!req.isAuthenticated()) {
     return res.status(401).json({ message: "Authentication required" });
   }
-  if (req.user?.isAdmin && (req.session as any).impersonatingUserId) {
+  if (req.user?.is_admin && (req.session as any).impersonatingUserId) {
     return next();
   }
-  if (req.user?.kycStatus !== "verified") {
+  if (req.user?.kyc_status !== "verified") {
     return res.status(403).json({ message: "KYC verification required to access this feature" });
   }
   next();
@@ -128,7 +128,7 @@ export async function registerRoutes(
 
       const user = await storage.createUser(parsed.data);
 
-      req.login(user, (err) => {
+      req.login(user as any, (err) => {
         if (err) return res.status(500).json({ message: "Login failed after registration" });
         return res.json({ id: user.id, username: user.username, email: user.email });
       });
@@ -163,11 +163,11 @@ export async function registerRoutes(
         if (!targetUser) return res.status(404).json({ message: "Impersonated user not found" });
         res.json({
           id: targetUser.id,
-          kuznexId: targetUser.kuznexId,
+          kuznexId: targetUser.kuznex_id,
           username: targetUser.username,
           email: targetUser.email,
-          kycStatus: targetUser.kycStatus,
-          isAdmin: targetUser.isAdmin,
+          kycStatus: targetUser.kyc_status,
+          isAdmin: targetUser.is_admin,
           impersonating: true,
           adminId: user.id,
           adminUsername: user.username,
@@ -175,7 +175,14 @@ export async function registerRoutes(
       }).catch(() => res.status(500).json({ message: "Error loading impersonated user" }));
       return;
     }
-    res.json({ id: user.id, kuznexId: user.kuznexId, username: user.username, email: user.email, kycStatus: user.kycStatus, isAdmin: user.isAdmin });
+    res.json({
+      id: user.id,
+      kuznexId: user.kuznex_id,
+      username: user.username,
+      email: user.email,
+      kycStatus: user.kyc_status,
+      isAdmin: user.is_admin,
+    });
   });
 
   app.get("/api/wallet", requireAuth, async (req, res) => {
@@ -268,13 +275,13 @@ export async function registerRoutes(
       await storage.updateWalletBalance(userId, toCurrency, newToBalance);
 
       const swap = await storage.createSwap({
-        userId,
-        fromCurrency,
-        toCurrency,
-        fromAmount: amount.toFixed(8),
-        toAmount: toAmount.toFixed(8),
+        user_id: userId,
+        from_currency: fromCurrency,
+        to_currency: toCurrency,
+        from_amount: amount.toFixed(8),
+        to_amount: toAmount.toFixed(8),
         rate: effectiveRate.toFixed(8),
-        spreadPercent: SWAP_SPREAD_PERCENT.toFixed(2),
+        spread_percent: SWAP_SPREAD_PERCENT.toFixed(2),
         status: "completed",
       });
 
@@ -308,10 +315,10 @@ export async function registerRoutes(
       }
 
       const deposit = await storage.createCryptoDeposit({
-        userId: getEffectiveUserId(req),
+        user_id: getEffectiveUserId(req),
         currency,
         network,
-        txHash: txHash || null,
+        tx_hash: txHash || null,
         amount: null,
         status: "pending",
       });
@@ -341,13 +348,13 @@ export async function registerRoutes(
       if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
 
       const tx = await storage.createInrTransaction({
-        userId: getEffectiveUserId(req),
+        user_id: getEffectiveUserId(req),
         type: "deposit",
         amount: parsed.data.amount,
-        utrNumber: parsed.data.utrNumber,
-        bankName: null,
-        accountNumber: null,
-        ifscCode: null,
+        utr_number: parsed.data.utrNumber,
+        bank_name: null,
+        account_number: null,
+        ifsc_code: null,
         status: "pending",
       });
 
@@ -374,13 +381,13 @@ export async function registerRoutes(
       await storage.updateWalletBalance(userId, "INR", newBalance);
 
       const tx = await storage.createInrTransaction({
-        userId,
+        user_id: userId,
         type: "withdraw",
         amount: amount.toFixed(2),
-        utrNumber: null,
-        bankName: parsed.data.bankName,
-        accountNumber: parsed.data.accountNumber,
-        ifscCode: parsed.data.ifscCode,
+        utr_number: null,
+        bank_name: parsed.data.bankName,
+        account_number: parsed.data.accountNumber,
+        ifsc_code: parsed.data.ifscCode,
         status: "pending",
       });
 
@@ -404,9 +411,9 @@ export async function registerRoutes(
       const user = await storage.getUser(getEffectiveUserId(req));
       if (!user) return res.status(404).json({ message: "User not found" });
       res.json({
-        kycStatus: user.kycStatus,
-        rejectionReason: user.rejectionReason,
-        kycData: user.kycData,
+        kycStatus: user.kyc_status,
+        rejectionReason: user.rejection_reason,
+        kycData: user.kyc_data,
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -459,7 +466,7 @@ export async function registerRoutes(
 
         const user = await storage.submitKyc(getEffectiveUserId(req), kycData);
         res.json({
-          kycStatus: user.kycStatus,
+          kycStatus: user.kyc_status,
           aiAnalysis: kycData.aiAnalysis,
           aiVerdict: kycData.aiVerdict,
         });
@@ -490,9 +497,9 @@ export async function registerRoutes(
         id: u.id,
         username: u.username,
         email: u.email,
-        kycStatus: u.kycStatus,
-        kycData: u.kycData,
-        createdAt: u.createdAt,
+        kycStatus: u.kyc_status,
+        kycData: u.kyc_data,
+        createdAt: u.created_at,
       }));
       res.json(safeUsers);
     } catch (error: any) {
@@ -514,7 +521,7 @@ export async function registerRoutes(
       }
 
       const user = await storage.updateKycStatus(userId, status, rejectionReason);
-      res.json({ id: user.id, kycStatus: user.kycStatus, rejectionReason: user.rejectionReason });
+      res.json({ id: user.id, kycStatus: user.kyc_status, rejectionReason: user.rejection_reason });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -525,12 +532,12 @@ export async function registerRoutes(
       const usersWithWallets = await storage.getAllUsersWithWallets();
       const safeUsers = usersWithWallets.map((u) => ({
         id: u.id,
-        kuznexId: u.kuznexId,
+        kuznexId: u.kuznex_id,
         username: u.username,
         email: u.email,
-        kycStatus: u.kycStatus,
-        isAdmin: u.isAdmin,
-        createdAt: u.createdAt,
+        kycStatus: u.kyc_status,
+        isAdmin: u.is_admin,
+        createdAt: u.created_at,
         wallets: u.wallets.map(w => ({ currency: w.currency, balance: w.balance })),
       }));
       res.json(safeUsers);
