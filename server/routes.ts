@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import passport from "passport";
 import { storage } from "./storage";
@@ -6,6 +6,90 @@ import { setupAuth, requireAuth } from "./auth";
 import { registerSchema, swapRequestSchema, inrDepositSchema, inrWithdrawSchema } from "@shared/schema";
 import { COINGECKO_IDS, SWAP_SPREAD_PERCENT, ADMIN_WALLETS, ADMIN_BANK_DETAILS, SUPPORTED_NETWORKS } from "@shared/constants";
 import axios from "axios";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+const kycUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const userId = (req as any).user?.id;
+      const dir = path.join("uploads", "kyc", String(userId));
+      fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname) || ".jpg";
+      cb(null, `${file.fieldname}_${Date.now()}${ext}`);
+    },
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowed.includes(file.mimetype)) {
+      cb(new Error("Only JPEG, PNG, and WebP images are allowed"));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  if (!req.isAuthenticated() || !req.user?.isAdmin) {
+    return res.status(403).json({ message: "Admin access required" });
+  }
+  next();
+}
+
+function requireKycVerified(req: Request, res: Response, next: NextFunction) {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Authentication required" });
+  }
+  if (req.user?.kycStatus !== "verified") {
+    return res.status(403).json({ message: "KYC verification required to access this feature" });
+  }
+  next();
+}
+
+async function analyzeDocumentWithGemini(filePath: string, docType: string): Promise<any> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return { isValid: false, error: "Gemini API key not configured", confidence: 0, issues: ["API key not configured"] };
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const imageData = fs.readFileSync(filePath);
+    const base64Image = imageData.toString("base64");
+    const mimeType = filePath.endsWith(".png") ? "image/png" : "image/jpeg";
+
+    let prompt = "";
+    if (docType === "aadhaar_front") {
+      prompt = "Analyze this image. Is this an Indian Aadhaar card (front side)? Extract the name and last 4 digits of Aadhaar number if visible. Respond in JSON format: { \"isValid\": true/false, \"documentType\": \"aadhaar_front\", \"name\": \"...\", \"aadhaarLast4\": \"...\", \"confidence\": 0-100, \"issues\": [] }";
+    } else if (docType === "aadhaar_back") {
+      prompt = "Analyze this image. Is this an Indian Aadhaar card (back side)? Check if the address section is visible. Respond in JSON format: { \"isValid\": true/false, \"documentType\": \"aadhaar_back\", \"hasAddress\": true/false, \"confidence\": 0-100, \"issues\": [] }";
+    } else if (docType === "pan_card") {
+      prompt = "Analyze this image. Is this an Indian PAN card? Extract the PAN number and name if visible. Respond in JSON format: { \"isValid\": true/false, \"documentType\": \"pan_card\", \"panNumber\": \"...\", \"name\": \"...\", \"confidence\": 0-100, \"issues\": [] }";
+    } else if (docType === "selfie") {
+      prompt = "Analyze this image. Is this a clear selfie/photo of a person's face? Check image quality and face visibility. Respond in JSON format: { \"isValid\": true/false, \"documentType\": \"selfie\", \"faceDetected\": true/false, \"imageQuality\": \"good/poor/blurry\", \"confidence\": 0-100, \"issues\": [] }";
+    }
+
+    const result = await model.generateContent([
+      { text: prompt },
+      { inlineData: { mimeType, data: base64Image } },
+    ]);
+
+    const responseText = result.response.text();
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+    return { isValid: false, confidence: 0, issues: ["Could not parse AI response"], rawResponse: responseText };
+  } catch (error: any) {
+    return { isValid: false, error: error.message, confidence: 0, issues: [error.message] };
+  }
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -61,7 +145,7 @@ export async function registerRoutes(
   app.get("/api/auth/me", (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
     const user = req.user!;
-    res.json({ id: user.id, username: user.username, email: user.email });
+    res.json({ id: user.id, username: user.username, email: user.email, kycStatus: user.kycStatus, isAdmin: user.isAdmin });
   });
 
   app.get("/api/wallet", requireAuth, async (req, res) => {
@@ -96,7 +180,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/swap", requireAuth, async (req, res) => {
+  app.post("/api/swap", requireKycVerified, async (req, res) => {
     try {
       const parsed = swapRequestSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
@@ -186,7 +270,7 @@ export async function registerRoutes(
     });
   });
 
-  app.post("/api/deposit/crypto", requireAuth, async (req, res) => {
+  app.post("/api/deposit/crypto", requireKycVerified, async (req, res) => {
     try {
       const { currency, network, txHash } = req.body;
       if (!currency || !network) {
@@ -221,7 +305,7 @@ export async function registerRoutes(
     res.json(ADMIN_BANK_DETAILS);
   });
 
-  app.post("/api/inr/deposit", requireAuth, async (req, res) => {
+  app.post("/api/inr/deposit", requireKycVerified, async (req, res) => {
     try {
       const parsed = inrDepositSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
@@ -243,7 +327,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/inr/withdraw", requireAuth, async (req, res) => {
+  app.post("/api/inr/withdraw", requireKycVerified, async (req, res) => {
     try {
       const parsed = inrWithdrawSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
@@ -280,6 +364,127 @@ export async function registerRoutes(
     try {
       const transactions = await storage.getInrTransactions(req.user!.id);
       res.json(transactions);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/kyc/status", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user!.id);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      res.json({
+        kycStatus: user.kycStatus,
+        rejectionReason: user.rejectionReason,
+        kycData: user.kycData,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post(
+    "/api/kyc/submit",
+    requireAuth,
+    kycUpload.fields([
+      { name: "aadhaar_front", maxCount: 1 },
+      { name: "aadhaar_back", maxCount: 1 },
+      { name: "pan_card", maxCount: 1 },
+      { name: "selfie", maxCount: 1 },
+    ]),
+    async (req, res) => {
+      try {
+        const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+        if (!files.aadhaar_front || !files.aadhaar_back || !files.pan_card || !files.selfie) {
+          return res.status(400).json({ message: "All documents required: aadhaar_front, aadhaar_back, pan_card, selfie" });
+        }
+
+        const kycData: any = {
+          aadhaarFrontPath: files.aadhaar_front[0].path,
+          aadhaarBackPath: files.aadhaar_back[0].path,
+          panCardPath: files.pan_card[0].path,
+          selfiePath: files.selfie[0].path,
+          submittedAt: new Date().toISOString(),
+          aiAnalysis: {},
+        };
+
+        const analysisPromises = [
+          analyzeDocumentWithGemini(files.aadhaar_front[0].path, "aadhaar_front"),
+          analyzeDocumentWithGemini(files.aadhaar_back[0].path, "aadhaar_back"),
+          analyzeDocumentWithGemini(files.pan_card[0].path, "pan_card"),
+          analyzeDocumentWithGemini(files.selfie[0].path, "selfie"),
+        ];
+
+        const [aadhaarFrontResult, aadhaarBackResult, panResult, selfieResult] = await Promise.all(analysisPromises);
+
+        kycData.aiAnalysis = {
+          aadhaarFront: aadhaarFrontResult,
+          aadhaarBack: aadhaarBackResult,
+          panCard: panResult,
+          selfie: selfieResult,
+        };
+
+        const allValid = aadhaarFrontResult.isValid && aadhaarBackResult.isValid && panResult.isValid && selfieResult.isValid;
+        kycData.aiVerdict = allValid ? "documents_appear_valid" : "review_required";
+
+        const user = await storage.submitKyc(req.user!.id, kycData);
+        res.json({
+          kycStatus: user.kycStatus,
+          aiAnalysis: kycData.aiAnalysis,
+          aiVerdict: kycData.aiVerdict,
+        });
+      } catch (error: any) {
+        res.status(500).json({ message: error.message || "KYC submission failed" });
+      }
+    }
+  );
+
+  app.get("/api/kyc/file/:userId/:filename", requireAdmin, (req, res) => {
+    const userId = req.params.userId as string;
+    const filename = req.params.filename as string;
+    if (!/^\d+$/.test(userId) || /[\/\\]/.test(filename)) {
+      return res.status(400).json({ message: "Invalid parameters" });
+    }
+    const safeName = path.basename(filename);
+    const filePath = path.join("uploads", "kyc", userId, safeName);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: "File not found" });
+    }
+    res.sendFile(path.resolve(filePath));
+  });
+
+  app.get("/api/admin/kyc", requireAdmin, async (req, res) => {
+    try {
+      const submittedUsers = await storage.getSubmittedKycUsers();
+      const safeUsers = submittedUsers.map((u) => ({
+        id: u.id,
+        username: u.username,
+        email: u.email,
+        kycStatus: u.kycStatus,
+        kycData: u.kycData,
+        createdAt: u.createdAt,
+      }));
+      res.json(safeUsers);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/kyc/:userId", requireAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId as string);
+      const { status, rejectionReason } = req.body;
+
+      if (!["verified", "rejected"].includes(status)) {
+        return res.status(400).json({ message: "Status must be 'verified' or 'rejected'" });
+      }
+
+      if (status === "rejected" && !rejectionReason) {
+        return res.status(400).json({ message: "Rejection reason is required" });
+      }
+
+      const user = await storage.updateKycStatus(userId, status, rejectionReason);
+      res.json({ id: user.id, kycStatus: user.kycStatus, rejectionReason: user.rejectionReason });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

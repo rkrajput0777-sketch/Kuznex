@@ -22,6 +22,10 @@ declare global {
       username: string;
       email: string;
       password: string;
+      kycStatus: string;
+      rejectionReason: string | null;
+      kycData: unknown;
+      isAdmin: boolean;
       createdAt: Date;
     }
   }

@@ -11,6 +11,9 @@ import {
   LogOut,
   Shield,
   Loader2,
+  AlertCircle,
+  UserCheck,
+  Settings,
 } from "lucide-react";
 import type { UserWallet } from "@shared/schema";
 
@@ -99,6 +102,14 @@ export default function Dashboard() {
                   INR Ramp
                 </Button>
               </Link>
+              {user.isAdmin && (
+                <Link href="/admin/kyc-review">
+                  <Button variant="ghost" size="sm" data-testid="link-nav-admin-kyc">
+                    <UserCheck className="w-4 h-4 mr-2" />
+                    KYC Admin
+                  </Button>
+                </Link>
+              )}
             </div>
 
             <div className="flex items-center gap-3">
@@ -150,6 +161,36 @@ export default function Dashboard() {
             </div>
           </div>
         </Card>
+
+        {user.kycStatus !== "verified" && (
+          <Card className="mb-6 p-4 border-yellow-200 bg-yellow-50" data-testid="card-kyc-banner">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0" />
+                <div>
+                  <p className="font-medium text-foreground text-sm">
+                    {user.kycStatus === "pending" && "Complete KYC to unlock trading"}
+                    {user.kycStatus === "submitted" && "KYC under review"}
+                    {user.kycStatus === "rejected" && "KYC rejected - please resubmit"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {user.kycStatus === "pending" && "Identity verification is required to access Swap, Deposit, and INR features."}
+                    {user.kycStatus === "submitted" && "Your documents are being reviewed. This usually takes 24-48 hours."}
+                    {user.kycStatus === "rejected" && "Your documents were not accepted. Please submit again."}
+                  </p>
+                </div>
+              </div>
+              {user.kycStatus !== "submitted" && (
+                <Link href="/kyc">
+                  <Button size="sm" data-testid="button-kyc-banner">
+                    <Shield className="w-4 h-4 mr-2" />
+                    {user.kycStatus === "rejected" ? "Re-submit" : "Start KYC"}
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </Card>
+        )}
 
         <h2 className="text-lg font-semibold text-foreground mb-4">Your Wallets</h2>
         

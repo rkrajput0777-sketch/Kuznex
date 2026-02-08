@@ -30,6 +30,10 @@ export interface IStorage {
   getCryptoDeposits(userId: number): Promise<CryptoDeposit[]>;
   createInrTransaction(data: Omit<InrTransaction, "id" | "createdAt">): Promise<InrTransaction>;
   getInrTransactions(userId: number): Promise<InrTransaction[]>;
+  submitKyc(userId: number, kycData: any): Promise<User>;
+  updateKycStatus(userId: number, status: string, rejectionReason?: string): Promise<User>;
+  getSubmittedKycUsers(): Promise<User[]>;
+  setUserAdmin(userId: number, isAdmin: boolean): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -110,6 +114,32 @@ export class DatabaseStorage implements IStorage {
 
   async getInrTransactions(userId: number): Promise<InrTransaction[]> {
     return db.select().from(inrTransactions).where(eq(inrTransactions.userId, userId));
+  }
+
+  async submitKyc(userId: number, kycData: any): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ kycStatus: "submitted", kycData })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async updateKycStatus(userId: number, status: string, rejectionReason?: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ kycStatus: status, rejectionReason: rejectionReason || null })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async getSubmittedKycUsers(): Promise<User[]> {
+    return db.select().from(users).where(eq(users.kycStatus, "submitted"));
+  }
+
+  async setUserAdmin(userId: number, isAdmin: boolean): Promise<void> {
+    await db.update(users).set({ isAdmin }).where(eq(users.id, userId));
   }
 }
 

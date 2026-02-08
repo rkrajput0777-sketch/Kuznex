@@ -9,7 +9,10 @@ import Dashboard from "@/pages/dashboard";
 import Swap from "@/pages/swap";
 import Deposit from "@/pages/deposit";
 import InrRamp from "@/pages/inr";
+import KycPage from "@/pages/kyc";
+import AdminKycReview from "@/pages/admin-kyc";
 import NotFound from "@/pages/not-found";
+import RequireKYC from "@/components/require-kyc";
 
 function Router() {
   return (
@@ -17,9 +20,17 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/login" component={Login} />
       <Route path="/dashboard" component={Dashboard} />
-      <Route path="/swap" component={Swap} />
-      <Route path="/deposit" component={Deposit} />
-      <Route path="/inr" component={InrRamp} />
+      <Route path="/kyc" component={KycPage} />
+      <Route path="/admin/kyc-review" component={AdminKycReview} />
+      <Route path="/swap">
+        <RequireKYC><Swap /></RequireKYC>
+      </Route>
+      <Route path="/deposit">
+        <RequireKYC><Deposit /></RequireKYC>
+      </Route>
+      <Route path="/inr">
+        <RequireKYC><InrRamp /></RequireKYC>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
