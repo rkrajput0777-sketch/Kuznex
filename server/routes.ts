@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import passport from "passport";
 import { storage } from "./storage";
 import { setupAuth, requireAuth } from "./auth";
-import { registerSchema, swapRequestSchema, inrDepositSchema, inrWithdrawSchema, withdrawRequestSchema, spotOrderSchema, contactMessageSchema } from "@shared/schema";
+import { registerSchema, swapRequestSchema, inrDepositSchema, inrWithdrawSchema, withdrawRequestSchema, spotOrderSchema, contactMessageSchema, usdtBuySellSchema, adminRateSettingsSchema } from "@shared/schema";
 import { COINGECKO_IDS, SWAP_SPREAD_PERCENT, ADMIN_BANK_DETAILS, SUPPORTED_NETWORKS, SUPPORTED_CHAINS, SPOT_TRADING_FEE, TRADABLE_PAIRS, VIEWABLE_PAIRS, TDS_RATE, EXCHANGE_FEE_RATE, SUPER_ADMIN_EMAIL, type ChainConfig } from "@shared/constants";
 import axios from "axios";
 import multer from "multer";
@@ -549,6 +549,132 @@ export async function registerRoutes(
     try {
       const transactions = await storage.getInrTransactions(getEffectiveUserId(req));
       res.json(transactions);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/usdt-rates", async (_req, res) => {
+    try {
+      const buyRate = await storage.getPlatformSetting("usdt_buy_rate");
+      const sellRate = await storage.getPlatformSetting("usdt_sell_rate");
+      res.json({
+        buyRate: buyRate || "92.00",
+        sellRate: sellRate || "90.00",
+      });
+    } catch (error: any) {
+      res.json({ buyRate: "92.00", sellRate: "90.00" });
+    }
+  });
+
+  app.post("/api/usdt/buy", requireKycVerifiedOrAdmin, async (req, res) => {
+    try {
+      const parsed = usdtBuySellSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+      if (parsed.data.type !== "buy") return res.status(400).json({ message: "Invalid type" });
+
+      const userId = getEffectiveUserId(req);
+      const inrAmount = parseFloat(parsed.data.amount);
+      if (isNaN(inrAmount) || inrAmount <= 0) return res.status(400).json({ message: "Invalid amount" });
+
+      const buyRateStr = await storage.getPlatformSetting("usdt_buy_rate");
+      const buyRate = parseFloat(buyRateStr || "92");
+
+      const inrWallet = await storage.getWallet(userId, "INR");
+      if (!inrWallet || parseFloat(inrWallet.balance) < inrAmount) {
+        return res.status(400).json({ message: "Insufficient INR balance" });
+      }
+
+      const usdtReceived = inrAmount / buyRate;
+
+      const newInrBalance = (parseFloat(inrWallet.balance) - inrAmount).toFixed(2);
+      await storage.updateWalletBalance(userId, "INR", newInrBalance);
+
+      const usdtWallet = await storage.getWallet(userId, "USDT");
+      const newUsdtBalance = (parseFloat(usdtWallet?.balance || "0") + usdtReceived).toFixed(8);
+      await storage.updateWalletBalance(userId, "USDT", newUsdtBalance);
+
+      res.json({
+        message: "USDT purchased successfully",
+        inrSpent: inrAmount.toFixed(2),
+        usdtReceived: usdtReceived.toFixed(8),
+        rate: buyRate.toFixed(2),
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/usdt/sell", requireKycVerifiedOrAdmin, async (req, res) => {
+    try {
+      const parsed = usdtBuySellSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+      if (parsed.data.type !== "sell") return res.status(400).json({ message: "Invalid type" });
+
+      const userId = getEffectiveUserId(req);
+      const usdtAmount = parseFloat(parsed.data.amount);
+      if (isNaN(usdtAmount) || usdtAmount <= 0) return res.status(400).json({ message: "Invalid amount" });
+
+      const sellRateStr = await storage.getPlatformSetting("usdt_sell_rate");
+      const sellRate = parseFloat(sellRateStr || "90");
+
+      const usdtWallet = await storage.getWallet(userId, "USDT");
+      if (!usdtWallet || parseFloat(usdtWallet.balance) < usdtAmount) {
+        return res.status(400).json({ message: "Insufficient USDT balance" });
+      }
+
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) return res.status(404).json({ message: "User not found" });
+      const pan = extractPanFromKyc(currentUser.kyc_data);
+      if (!pan && !currentUser.is_admin) {
+        return res.status(403).json({ message: "PAN Card verification required for selling USDT as per Govt norms." });
+      }
+
+      const grossInr = usdtAmount * sellRate;
+      const tdsAmount = grossInr * TDS_RATE;
+      const netInr = grossInr - tdsAmount;
+
+      const newUsdtBalance = (parseFloat(usdtWallet.balance) - usdtAmount).toFixed(8);
+      await storage.updateWalletBalance(userId, "USDT", newUsdtBalance);
+
+      const inrWallet = await storage.getWallet(userId, "INR");
+      const newInrBalance = (parseFloat(inrWallet?.balance || "0") + netInr).toFixed(2);
+      await storage.updateWalletBalance(userId, "INR", newInrBalance);
+
+      res.json({
+        message: "USDT sold successfully",
+        usdtSold: usdtAmount.toFixed(8),
+        grossInr: grossInr.toFixed(2),
+        tdsAmount: tdsAmount.toFixed(2),
+        netInrReceived: netInr.toFixed(2),
+        rate: sellRate.toFixed(2),
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/rates", requireAdmin, async (_req, res) => {
+    try {
+      const settings = await storage.getAllPlatformSettings();
+      res.json({
+        usdt_buy_rate: settings.usdt_buy_rate || "92.00",
+        usdt_sell_rate: settings.usdt_sell_rate || "90.00",
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/rates", requireAdmin, async (req, res) => {
+    try {
+      const parsed = adminRateSettingsSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+
+      await storage.setPlatformSetting("usdt_buy_rate", parsed.data.usdt_buy_rate);
+      await storage.setPlatformSetting("usdt_sell_rate", parsed.data.usdt_sell_rate);
+
+      res.json({ message: "Rates updated successfully" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

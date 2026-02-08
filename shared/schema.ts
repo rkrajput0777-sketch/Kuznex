@@ -178,3 +178,20 @@ export const contactMessageSchema = z.object({
   subject: z.string().min(1, "Please select a subject"),
   message: z.string().min(10, "Message must be at least 10 characters"),
 });
+
+export interface PlatformSettings {
+  id: number;
+  key: string;
+  value: string;
+  updated_at: string;
+}
+
+export const usdtBuySellSchema = z.object({
+  type: z.enum(["buy", "sell"]),
+  amount: z.string().min(1, "Amount is required"),
+});
+
+export const adminRateSettingsSchema = z.object({
+  usdt_buy_rate: z.string().min(1, "Buy rate is required"),
+  usdt_sell_rate: z.string().min(1, "Sell rate is required"),
+});

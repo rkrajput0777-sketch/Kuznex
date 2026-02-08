@@ -59,6 +59,9 @@ export interface IStorage {
   createContactMessage(data: Omit<ContactMessage, "id" | "created_at">): Promise<ContactMessage>;
   getContactMessages(): Promise<ContactMessage[]>;
   updateContactMessageStatus(id: number, status: string): Promise<ContactMessage>;
+  getPlatformSetting(key: string): Promise<string | null>;
+  setPlatformSetting(key: string, value: string): Promise<void>;
+  getAllPlatformSettings(): Promise<Record<string, string>>;
 }
 
 export class SupabaseStorage implements IStorage {
@@ -595,6 +598,35 @@ export class SupabaseStorage implements IStorage {
       .single();
     if (error || !data) throw new Error(error?.message || "Failed to update message status");
     return data as ContactMessage;
+  }
+
+  async getPlatformSetting(key: string): Promise<string | null> {
+    const { data, error } = await supabase
+      .from("platform_settings")
+      .select("value")
+      .eq("key", key)
+      .single();
+    if (error || !data) return null;
+    return data.value;
+  }
+
+  async setPlatformSetting(key: string, value: string): Promise<void> {
+    const { error } = await supabase
+      .from("platform_settings")
+      .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "key" });
+    if (error) throw new Error(error.message);
+  }
+
+  async getAllPlatformSettings(): Promise<Record<string, string>> {
+    const { data, error } = await supabase
+      .from("platform_settings")
+      .select("key, value");
+    if (error) throw new Error(error.message);
+    const settings: Record<string, string> = {};
+    for (const row of data || []) {
+      settings[row.key] = row.value;
+    }
+    return settings;
   }
 }
 

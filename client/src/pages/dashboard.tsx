@@ -113,6 +113,14 @@ export default function Dashboard() {
     return sum + bal * price;
   }, 0) || 0;
 
+  const totalUsdValue = wallets?.reduce((sum, w) => {
+    const bal = parseFloat(w.balance);
+    if (bal === 0) return sum;
+    if (w.currency === "INR") return sum + bal / (prices?.["USDT"]?.inr || 90);
+    const price = prices?.[w.currency]?.usd || 0;
+    return sum + bal * price;
+  }, 0) || 0;
+
   return (
     <div className="min-h-screen bg-background">
       {user.impersonating && (
@@ -195,6 +203,12 @@ export default function Dashboard() {
                       Messages
                     </Button>
                   </Link>
+                  <Link href="/admin/rates">
+                    <Button variant="ghost" size="sm" data-testid="link-nav-admin-rates">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Rates
+                    </Button>
+                  </Link>
                 </>
               )}
             </div>
@@ -274,9 +288,9 @@ export default function Dashboard() {
                   <p className="text-3xl font-bold text-foreground" data-testid="text-total-value">
                     {walletsLoading ? "Loading..." : `₹${totalInrValue.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`}
                   </p>
-                  {userStats && (
+                  {!walletsLoading && prices && (
                     <p className="text-sm text-muted-foreground mt-0.5" data-testid="text-total-usdt">
-                      ~${userStats.totalBalanceUsdt.toLocaleString("en-US", { maximumFractionDigits: 2 })} USD
+                      ≈ ${totalUsdValue.toLocaleString("en-US", { maximumFractionDigits: 2 })} USD
                     </p>
                   )}
                 </div>
@@ -374,9 +388,23 @@ export default function Dashboard() {
                   <p className="text-xl font-bold text-foreground" data-testid={`text-balance-${wallet.currency}`}>
                     {bal.toFixed(wallet.currency === "INR" ? 2 : 8)}
                   </p>
-                  {wallet.currency !== "INR" && priceInr > 0 && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      ≈ ₹{valueInr.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                  {wallet.currency !== "INR" && (
+                    <div className="mt-1 space-y-0.5">
+                      {(prices?.[wallet.currency]?.usd || 0) > 0 && (
+                        <p className="text-sm text-muted-foreground" data-testid={`text-usd-${wallet.currency}`}>
+                          ≈ ${(bal * (prices?.[wallet.currency]?.usd || 0)).toLocaleString("en-US", { maximumFractionDigits: 2 })} USD
+                        </p>
+                      )}
+                      {priceInr > 0 && (
+                        <p className="text-sm text-muted-foreground" data-testid={`text-inr-${wallet.currency}`}>
+                          ≈ ₹{valueInr.toLocaleString("en-IN", { maximumFractionDigits: 2 })} INR
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {wallet.currency === "INR" && bal > 0 && (
+                    <p className="text-sm text-muted-foreground mt-1" data-testid={`text-usd-INR`}>
+                      ≈ ${(bal / (prices?.["USDT"]?.inr || 90)).toLocaleString("en-US", { maximumFractionDigits: 2 })} USD
                     </p>
                   )}
                 </Card>

@@ -66,6 +66,13 @@ async function seedTestData() {
       return;
     }
 
+    if (!adminUser.is_admin) {
+      await storage.setUserAdmin(adminUser.id, true);
+      console.log(`[Seed] Admin flag set for ${SUPER_ADMIN_EMAIL}`);
+    } else {
+      console.log(`[Seed] Admin flag already set for ${SUPER_ADMIN_EMAIL}`);
+    }
+
     const usdtWallet = await storage.getWallet(adminUser.id, "USDT");
     if (usdtWallet) {
       await storage.updateWalletBalance(adminUser.id, "USDT", "75.00000000");

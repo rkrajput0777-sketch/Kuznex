@@ -26,6 +26,8 @@ import {
   IndianRupee,
   Building2,
   Info,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -34,6 +36,7 @@ import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { InrTransaction, UserWallet } from "@shared/schema";
+import { useState } from "react";
 
 export default function InrRamp() {
   const { data: user, isLoading: authLoading } = useAuth();
@@ -104,6 +107,45 @@ export default function InrRamp() {
     },
   });
 
+  const { data: usdtRates } = useQuery<{ buyRate: string; sellRate: string }>({
+    queryKey: ["/api/usdt-rates"],
+    enabled: !!user,
+    refetchInterval: 30000,
+  });
+
+  const [buyAmount, setBuyAmount] = useState("");
+  const [sellAmount, setSellAmount] = useState("");
+
+  const buyUsdtMutation = useMutation({
+    mutationFn: async (amount: string) => {
+      const res = await apiRequest("POST", "/api/usdt/buy", { type: "buy", amount });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/wallet"] });
+      setBuyAmount("");
+      toast({ title: "USDT Purchased", description: `${parseFloat(data.usdtReceived).toFixed(2)} USDT credited at rate ₹${data.rate}` });
+    },
+    onError: (err: any) => {
+      toast({ title: "Buy failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const sellUsdtMutation = useMutation({
+    mutationFn: async (amount: string) => {
+      const res = await apiRequest("POST", "/api/usdt/sell", { type: "sell", amount });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/wallet"] });
+      setSellAmount("");
+      toast({ title: "USDT Sold", description: `₹${parseFloat(data.netInrReceived).toLocaleString("en-IN")} INR credited (TDS: ₹${data.tdsAmount})` });
+    },
+    onError: (err: any) => {
+      toast({ title: "Sell failed", description: err.message, variant: "destructive" });
+    },
+  });
+
   if (authLoading) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   }
@@ -111,6 +153,17 @@ export default function InrRamp() {
 
   const inrWallet = wallets?.find(w => w.currency === "INR");
   const inrBalance = inrWallet ? parseFloat(inrWallet.balance) : 0;
+  const usdtWallet = wallets?.find(w => w.currency === "USDT");
+  const usdtBalance = usdtWallet ? parseFloat(usdtWallet.balance) : 0;
+
+  const buyRate = parseFloat(usdtRates?.buyRate || "92");
+  const sellRate = parseFloat(usdtRates?.sellRate || "90");
+  const buyAmountNum = parseFloat(buyAmount) || 0;
+  const sellAmountNum = parseFloat(sellAmount) || 0;
+  const usdtFromBuy = buyAmountNum > 0 ? buyAmountNum / buyRate : 0;
+  const inrFromSell = sellAmountNum > 0 ? sellAmountNum * sellRate : 0;
+  const tdsFromSell = inrFromSell * 0.01;
+  const netFromSell = inrFromSell - tdsFromSell;
 
   const handleLogout = () => {
     logout.mutate(undefined, { onSuccess: () => setLocation("/") });
@@ -143,15 +196,148 @@ export default function InrRamp() {
 
       <main className="max-w-xl mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold text-foreground mb-2" data-testid="text-inr-title">INR On/Off Ramp</h1>
-        <p className="text-muted-foreground mb-6">
-          INR Balance: <span className="font-semibold text-foreground">₹{inrBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
-        </p>
+        <div className="flex items-center gap-4 mb-6 flex-wrap">
+          <p className="text-muted-foreground">
+            INR: <span className="font-semibold text-foreground">₹{inrBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+          </p>
+          <p className="text-muted-foreground">
+            USDT: <span className="font-semibold text-foreground">{usdtBalance.toFixed(2)}</span>
+          </p>
+        </div>
 
-        <Tabs defaultValue="deposit">
+        <Tabs defaultValue="buy-usdt">
           <TabsList className="w-full mb-6">
-            <TabsTrigger value="deposit" className="flex-1" data-testid="tab-inr-deposit">Deposit INR</TabsTrigger>
-            <TabsTrigger value="withdraw" className="flex-1" data-testid="tab-inr-withdraw">Withdraw INR</TabsTrigger>
+            <TabsTrigger value="buy-usdt" className="flex-1" data-testid="tab-buy-usdt">Buy USDT</TabsTrigger>
+            <TabsTrigger value="sell-usdt" className="flex-1" data-testid="tab-sell-usdt">Sell USDT</TabsTrigger>
+            <TabsTrigger value="deposit" className="flex-1" data-testid="tab-inr-deposit">Deposit</TabsTrigger>
+            <TabsTrigger value="withdraw" className="flex-1" data-testid="tab-inr-withdraw">Withdraw</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="buy-usdt">
+            <Card className="p-6 mb-6">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="w-5 h-5 text-green-600" />
+                <h3 className="font-semibold text-foreground">Buy USDT with INR</h3>
+              </div>
+              <div className="p-3 rounded-lg bg-secondary border border-border mb-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Buy Rate</span>
+                  <span className="font-semibold text-foreground" data-testid="text-buy-rate">₹{buyRate.toFixed(2)} / USDT</span>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium mb-1.5 block">INR Amount</Label>
+                  <div className="relative">
+                    <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      type="number"
+                      placeholder="Enter INR amount"
+                      className="pl-10"
+                      value={buyAmount}
+                      onChange={(e) => setBuyAmount(e.target.value)}
+                      data-testid="input-buy-usdt-amount"
+                    />
+                  </div>
+                </div>
+                {buyAmountNum > 0 && (
+                  <div className="p-4 rounded-lg bg-muted/50 border border-border space-y-2" data-testid="buy-usdt-preview">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">You Pay</span>
+                      <span className="text-foreground font-medium">₹{buyAmountNum.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Rate</span>
+                      <span className="text-foreground">₹{buyRate.toFixed(2)} / USDT</span>
+                    </div>
+                    <div className="border-t border-border pt-2 flex items-center justify-between text-sm">
+                      <span className="font-semibold text-foreground">You Receive</span>
+                      <span className="font-bold text-green-600 dark:text-green-400" data-testid="text-buy-usdt-receive">{usdtFromBuy.toFixed(2)} USDT</span>
+                    </div>
+                  </div>
+                )}
+                <Button
+                  className="w-full"
+                  disabled={buyUsdtMutation.isPending || buyAmountNum <= 0 || buyAmountNum > inrBalance}
+                  onClick={() => buyUsdtMutation.mutate(buyAmount)}
+                  data-testid="button-buy-usdt"
+                >
+                  {buyUsdtMutation.isPending ? "Processing..." : "Buy USDT"}
+                </Button>
+                {buyAmountNum > inrBalance && buyAmountNum > 0 && (
+                  <p className="text-xs text-red-600 dark:text-red-400 text-center">Insufficient INR balance</p>
+                )}
+              </div>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="sell-usdt">
+            <Card className="p-6 mb-6">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingDown className="w-5 h-5 text-red-600" />
+                <h3 className="font-semibold text-foreground">Sell USDT for INR</h3>
+              </div>
+              <div className="p-3 rounded-lg bg-secondary border border-border mb-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Sell Rate</span>
+                  <span className="font-semibold text-foreground" data-testid="text-sell-rate">₹{sellRate.toFixed(2)} / USDT</span>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium mb-1.5 block">USDT Amount</Label>
+                  <Input
+                    type="number"
+                    placeholder="Enter USDT amount"
+                    value={sellAmount}
+                    onChange={(e) => setSellAmount(e.target.value)}
+                    data-testid="input-sell-usdt-amount"
+                  />
+                </div>
+                {sellAmountNum > 0 && (
+                  <div className="p-4 rounded-lg bg-muted/50 border border-border space-y-2" data-testid="sell-usdt-preview">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">You Sell</span>
+                      <span className="text-foreground font-medium">{sellAmountNum.toFixed(2)} USDT</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Rate</span>
+                      <span className="text-foreground">₹{sellRate.toFixed(2)} / USDT</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Gross INR</span>
+                      <span className="text-foreground">₹{inrFromSell.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">TDS (1%)</span>
+                      <span className="text-red-600 dark:text-red-400">-₹{tdsFromSell.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="border-t border-border pt-2 flex items-center justify-between text-sm">
+                      <span className="font-semibold text-foreground">You Receive</span>
+                      <span className="font-bold text-green-600 dark:text-green-400" data-testid="text-sell-usdt-receive">₹{netFromSell.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                )}
+                <Button
+                  className="w-full"
+                  disabled={sellUsdtMutation.isPending || sellAmountNum <= 0 || sellAmountNum > usdtBalance}
+                  onClick={() => sellUsdtMutation.mutate(sellAmount)}
+                  data-testid="button-sell-usdt"
+                >
+                  {sellUsdtMutation.isPending ? "Processing..." : "Sell USDT"}
+                </Button>
+                {sellAmountNum > usdtBalance && sellAmountNum > 0 && (
+                  <p className="text-xs text-red-600 dark:text-red-400 text-center">Insufficient USDT balance</p>
+                )}
+                <div className="p-3 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 flex gap-2">
+                  <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+                  <p className="text-xs text-muted-foreground">
+                    1% TDS is deducted as per Govt of India VDA guidelines (Section 194S).
+                  </p>
+                </div>
+              </div>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="deposit">
             <Card className="p-6 mb-6">

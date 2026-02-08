@@ -17,6 +17,7 @@ import AdminUsers from "@/pages/admin-users";
 import AdminWithdrawals from "@/pages/admin-withdrawals";
 import AdminTdsReports from "@/pages/admin-tds";
 import AdminMessages from "@/pages/admin-messages";
+import AdminRates from "@/pages/admin-rates";
 import SpotTrade from "@/pages/spot-trade";
 import { PrivacyPolicy, TermsOfService, RiskDisclosure, AmlPolicy, TdsCompliance } from "@/pages/legal";
 import NotFound from "@/pages/not-found";
@@ -50,6 +51,9 @@ function Router() {
       </Route>
       <Route path="/admin/messages">
         <AdminGuard><AdminMessages /></AdminGuard>
+      </Route>
+      <Route path="/admin/rates">
+        <AdminGuard><AdminRates /></AdminGuard>
       </Route>
       <Route path="/trade/:pair">
         {(params: { pair: string }) => (
