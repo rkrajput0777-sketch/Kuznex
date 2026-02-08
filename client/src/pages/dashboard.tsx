@@ -19,6 +19,7 @@ import {
   BarChart3,
   TrendingUp,
   TrendingDown,
+  Mail,
 } from "lucide-react";
 import type { UserWallet, UserStats } from "@shared/schema";
 import kuznexLogo from "@assets/image_1770554564085.png";
@@ -186,6 +187,12 @@ export default function Dashboard() {
                     <Button variant="ghost" size="sm" data-testid="link-nav-admin-tds">
                       <Shield className="w-4 h-4 mr-2" />
                       TDS
+                    </Button>
+                  </Link>
+                  <Link href="/admin/messages">
+                    <Button variant="ghost" size="sm" data-testid="link-nav-admin-messages">
+                      <Mail className="w-4 h-4 mr-2" />
+                      Messages
                     </Button>
                   </Link>
                 </>

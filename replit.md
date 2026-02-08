@@ -120,7 +120,36 @@ Kuznex is built as a monorepo, separating the application into `client/` (React 
 ### TDS API Endpoints
 - `GET /api/admin/tds-report?from=YYYY-MM-DD&to=YYYY-MM-DD` — Get aggregated TDS records from swaps and INR transactions (admin only)
 
+### Contact Support System
+- **Database Table**: `contact_messages` (id, user_id nullable, name, email, subject, message, status, created_at)
+- **Status Values**: `new`, `replied`, `archived`
+- **Public Form**: `/contact` page with subject dropdown (Deposit Issue, KYC, Withdrawal, Technical, Account, Other)
+- **Admin Portal**: `/admin/messages` with filter by status, expand to read, reply via mailto, mark replied/archived
+- **Migration**: `supabase-migration-v6-contact.sql` — must be run in Supabase SQL Editor
+
+### Contact API Endpoints
+- `POST /api/contact` — Submit a contact message (public, optionally authenticated)
+- `GET /api/admin/messages` — List all contact messages (admin only)
+- `PATCH /api/admin/messages/:id` — Update message status (admin only)
+
+### Legal Pages
+- `/legal/privacy-policy` — Privacy Policy
+- `/legal/terms` — Terms of Service
+- `/legal/risk-disclosure` — Risk Disclosure
+- `/legal/aml-policy` — Anti-Money Laundering Policy
+- `/legal/tds-compliance` — TDS Compliance (Section 194S explanation)
+
+### SEO
+- Global meta tags: title, description, keywords, OG tags, Twitter cards optimized for Indian crypto keywords
+- `sitemap.xml` and `robots.txt` in `client/public/`
+- Canonical URL set to `https://kuznex.com/`
+
 ## Recent Changes (2026-02-08)
+- Added Contact Us system: public form (/contact) + admin portal (/admin/messages)
+- Created 5 legal pages: Privacy Policy, Terms, Risk Disclosure, AML Policy, TDS Compliance
+- Full SEO optimization: meta tags, OG tags, sitemap.xml, robots.txt for Indian crypto keywords
+- Updated Footer with working links to all legal pages, contact, and product routes
+- Added admin Messages nav link in dashboard
 - Added TDS (Tax Deducted at Source) compliance system per India VDA Section 194S
 - 1% TDS deduction on crypto-to-INR swaps and INR withdrawals
 - PAN card verification gating for sell/withdraw operations

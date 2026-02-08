@@ -1,0 +1,41 @@
+Act as a Senior SEO Specialist & Brand Manager. We are finalizing the "Kuznex Exchange" identity and search engine presence.
+
+### OBJECTIVE:
+1. Re-Brand: Update ALL support emails to support@Kuznex.in (Remove .com).
+2. SEO Domination: Inject a massive list of Meta Tags to rank #1 in India.
+3. Contact System: Finalize the support form with the new email.
+
+### 1. GLOBAL REPLACEMENT (Urgent)
+- Scan the entire project (Footer, Contact Page, Terms of Service, Email Templates).
+- Replace support@Kuznex.com with **support@Kuznex.in**.
+- Ensure the "Mailto" links also point to the .in address.
+
+### 2. MASSIVE SEO META TAGS INJECTION (layout.tsx)
+Update the global metadata object to include these exhaustive tags for maximum visibilitTitle:e:** Kuznex | India's #1 Trusted Crypto Exchange | Buy Bitcoin & USDT with INR
+
+**Description:**
+"Join Kuznex, India's most secure crypto exchange. Buy USDT, Bitcoin (BTC), Ethereum (ETH) with UPI & IMPS. 100% TDS Compliant. Instant Withdrawals in INR. Best rates in Uttar Pradesh & India. Start trading with Keywords (Add ALL of these):hese):**
+[
+  "Kuznex", "Kuznex Exchange", "Crypto Exchange India", "Buy Bitcoin India", "USDT to INR",
+  "Best Crypto Exchange for Beginners", "TDS Compliant Crypto App", "P2P Crypto Mathura",
+  "Buy USDT with UPI", "Instant Crypto Withdrawal", "Bitcoin Price in Rupees",
+  "Ethereum to INR", "Dogecoin Price India", "Shiba Inu Price INR",
+  "Crypto Trading App India", "Secure Bitcoin Wallet", "UP Crypto Exchange",
+  "Kuznex Login", "Kuznex App", "Sell USDT for Cash", "Legit Crypto App InOpenGraph (OG) - For WhatsApp/Facebook:ebook:**
+- og:site_name: "Kuznex Exchange"
+- og:title: "🇮🇳 Buy Crypto in India with INR | Kuznex"
+- og:description: "Zero Fee Deposits. Instant KYC. 100% Safe & Legal. Sign up now and get started!"
+- og:type: "website"
+- og:url: "https://kuznex.in" (or current Replit URL)
+- og:image: (Link to your logo/bTwitter Cards:Cards:**
+- twitter:card: "summary_large_image"
+- twitter:title: "Kuznex - The Future of Crypto in India"
+- twitter:description: "Trade with confidence. 24/7 Support at support@Kuznex.in"
+
+### 3. CONTACT US PAGE UPDATE (/contact)
+- **Display Email:** Show "Need help? support@Kuznex.in@Kuznex.in**" clearly on Backend Logic:end Logic:** When a user submits the form, if we send an auto-reply, ensure the "From" address is configured as no-reply@kuznex.in.
+
+### 4. LEGAL PAGES
+- In Privacy Policy and Terms, wherever an email is mentioned for grievances, use support@Kuznex.in.
+
+**EXECUTE THESE CHANGES IMMEDIATELY.**

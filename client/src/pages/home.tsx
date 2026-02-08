@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { motion } from "framer-motion";
+import { Helmet } from "react-helmet-async";
 import kuznexLogo from "@assets/image_1770554564085.png";
 import DatabaseWithRestApi from "@/components/ui/database-with-rest-api";
 
@@ -671,10 +672,11 @@ function Footer() {
             <h4 className="font-medium text-foreground text-sm mb-4">Products</h4>
             <ul className="space-y-2.5">
               {[
-                { name: "Swap", href: "/swap" },
-                { name: "Spot Trading", href: "/spot-trade/BTCUSDT" },
-                { name: "INR Gateway", href: "/inr" },
+                { name: "Instant Swap", href: "/swap" },
+                { name: "Spot Trading", href: "/trade" },
+                { name: "INR Ramp", href: "/inr" },
                 { name: "Deposits", href: "/deposit" },
+                { name: "Portfolio", href: "/dashboard" },
               ].map((item) => (
                 <li key={item.name}>
                   <Link
@@ -690,12 +692,12 @@ function Footer() {
           </div>
 
           <div>
-            <h4 className="font-medium text-foreground text-sm mb-4">Account</h4>
+            <h4 className="font-medium text-foreground text-sm mb-4">Company</h4>
             <ul className="space-y-2.5">
               {[
                 { name: "Dashboard", href: "/dashboard" },
                 { name: "Verification", href: "/kyc" },
-                { name: "Portfolio", href: "/dashboard" },
+                { name: "Contact Us", href: "/contact" },
               ].map((item) => (
                 <li key={item.name}>
                   <Link
@@ -713,15 +715,21 @@ function Footer() {
           <div>
             <h4 className="font-medium text-foreground text-sm mb-4">Legal</h4>
             <ul className="space-y-2.5">
-              {["Privacy Policy", "Terms of Service", "Risk Disclosure"].map((item) => (
-                <li key={item}>
-                  <a
-                    href="#"
+              {[
+                { name: "Privacy Policy", href: "/legal/privacy-policy" },
+                { name: "Terms of Service", href: "/legal/terms" },
+                { name: "Risk Disclosure", href: "/legal/risk-disclosure" },
+                { name: "AML Policy", href: "/legal/aml-policy" },
+                { name: "TDS Compliance", href: "/legal/tds-compliance" },
+              ].map((item) => (
+                <li key={item.name}>
+                  <Link
+                    href={item.href}
                     className="text-sm text-muted-foreground hover-elevate rounded-md px-1 py-0.5 inline-block"
-                    data-testid={`link-footer-${item.toLowerCase().replace(/\s/g, '-')}`}
+                    data-testid={`link-footer-${item.name.toLowerCase().replace(/\s/g, '-')}`}
                   >
-                    {item}
-                  </a>
+                    {item.name}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -746,6 +754,13 @@ function Footer() {
 export default function Home() {
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Kuznex | Secure Crypto Exchange - Trade Digital Assets with INR</title>
+        <meta name="description" content="Kuznex is a secure, TDS-compliant crypto exchange for trading Bitcoin, USDT, and digital assets with INR. Multichain deposits across 8 networks, instant swaps, and spot trading." />
+        <meta property="og:title" content="Kuznex | Secure Crypto Exchange" />
+        <meta property="og:description" content="Trade Bitcoin, USDT, and digital assets with INR on a secure, TDS-compliant platform." />
+        <link rel="canonical" href="https://kuznex.com/" />
+      </Helmet>
       <style>{`
         @keyframes float {
           0%, 100% { transform: translateY(0px) translateX(0px); }

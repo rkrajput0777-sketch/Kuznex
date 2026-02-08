@@ -1282,7 +1282,7 @@ export async function registerRoutes(
 
   app.patch("/api/admin/messages/:id", requireAdmin, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(req.params.id as string);
       const { status } = req.body;
       if (!["new", "replied", "archived"].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
