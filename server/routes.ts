@@ -213,25 +213,42 @@ export async function registerRoutes(
     }
   });
 
+  let cachedPrices: Record<string, { usd: number; inr: number }> | null = null;
+  let pricesCacheTime = 0;
+  const PRICES_CACHE_TTL = 10000;
+
+  async function fetchPrices(): Promise<Record<string, { usd: number; inr: number }>> {
+    const now = Date.now();
+    if (cachedPrices && now - pricesCacheTime < PRICES_CACHE_TTL) {
+      return cachedPrices;
+    }
+
+    const ids = Object.values(COINGECKO_IDS).join(",");
+    const response = await axios.get(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd,inr`,
+      { timeout: 10000 }
+    );
+    const prices: Record<string, { usd: number; inr: number }> = {};
+    for (const [symbol, cgId] of Object.entries(COINGECKO_IDS)) {
+      if (response.data[cgId]) {
+        prices[symbol] = {
+          usd: response.data[cgId].usd,
+          inr: response.data[cgId].inr,
+        };
+      }
+    }
+    prices["INR"] = { usd: 0, inr: 1 };
+    cachedPrices = prices;
+    pricesCacheTime = now;
+    return prices;
+  }
+
   app.get("/api/prices", async (_req, res) => {
     try {
-      const ids = Object.values(COINGECKO_IDS).join(",");
-      const response = await axios.get(
-        `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd,inr`,
-        { timeout: 10000 }
-      );
-      const prices: Record<string, { usd: number; inr: number }> = {};
-      for (const [symbol, cgId] of Object.entries(COINGECKO_IDS)) {
-        if (response.data[cgId]) {
-          prices[symbol] = {
-            usd: response.data[cgId].usd,
-            inr: response.data[cgId].inr,
-          };
-        }
-      }
-      prices["INR"] = { usd: 0, inr: 1 };
+      const prices = await fetchPrices();
       res.json(prices);
     } catch (error: any) {
+      if (cachedPrices) return res.json(cachedPrices);
       res.status(503).json({ message: "Price feed unavailable" });
     }
   });
@@ -254,27 +271,23 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Insufficient balance" });
       }
 
-      const ids = Object.values(COINGECKO_IDS).join(",");
-      const priceResp = await axios.get(
-        `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd,inr`,
-        { timeout: 10000 }
-      );
+      const prices = await fetchPrices();
 
       let fromPriceUsd = 1;
       let toPriceUsd = 1;
 
       if (fromCurrency === "INR") {
-        const usdInr = priceResp.data["tether"]?.inr || 83;
+        const usdInr = prices["USDT"]?.inr || 83;
         fromPriceUsd = 1 / usdInr;
-      } else if (COINGECKO_IDS[fromCurrency]) {
-        fromPriceUsd = priceResp.data[COINGECKO_IDS[fromCurrency]]?.usd || 0;
+      } else if (prices[fromCurrency]) {
+        fromPriceUsd = prices[fromCurrency].usd || 0;
       }
 
       if (toCurrency === "INR") {
-        const usdInr = priceResp.data["tether"]?.inr || 83;
+        const usdInr = prices["USDT"]?.inr || 83;
         toPriceUsd = 1 / usdInr;
-      } else if (COINGECKO_IDS[toCurrency]) {
-        toPriceUsd = priceResp.data[COINGECKO_IDS[toCurrency]]?.usd || 0;
+      } else if (prices[toCurrency]) {
+        toPriceUsd = prices[toCurrency].usd || 0;
       }
 
       if (fromPriceUsd === 0 || toPriceUsd === 0) {
@@ -1110,15 +1123,31 @@ export async function registerRoutes(
     }
   });
 
+  let cachedPairs: any[] = [];
+  let pairsCacheTime = 0;
+  const PAIRS_CACHE_TTL = 15000;
+
   app.get("/api/spot/pairs", async (_req, res) => {
     try {
+      const now = Date.now();
+      if (cachedPairs.length > 0 && now - pairsCacheTime < PAIRS_CACHE_TTL) {
+        return res.json(cachedPairs);
+      }
+
       const response = await axios.get(
-        `https://api.binance.com/api/v3/ticker/24hr`,
-        { timeout: 10000 }
+        `https://data-api.binance.vision/api/v3/ticker/24hr`,
+        { timeout: 15000 }
       );
       const allTickers = response.data as any[];
+      const stablecoinBases = new Set(["USDC", "BUSD", "TUSD", "USDP", "DAI", "FDUSD", "USDD", "AEUR", "EUR", "GBP", "BRL", "TRY", "ARS", "PLN", "RON", "UAH", "BIDR", "IDRT", "VAI", "BVND"]);
       const filtered = allTickers
-        .filter((t: any) => VIEWABLE_PAIRS.includes(t.symbol))
+        .filter((t: any) => {
+          if (!t.symbol.endsWith("USDT")) return false;
+          const base = t.symbol.replace("USDT", "");
+          if (stablecoinBases.has(base)) return false;
+          if (parseFloat(t.quoteVolume) < 10000) return false;
+          return true;
+        })
         .map((t: any) => {
           const tradablePair = TRADABLE_PAIRS.find(p => p.symbol === t.symbol);
           return {
@@ -1136,8 +1165,14 @@ export async function registerRoutes(
           };
         })
         .sort((a: any, b: any) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume));
+
+      cachedPairs = filtered;
+      pairsCacheTime = now;
       res.json(filtered);
     } catch (error: any) {
+      if (cachedPairs.length > 0) {
+        return res.json(cachedPairs);
+      }
       res.status(503).json({ message: "Market data unavailable" });
     }
   });
@@ -1163,7 +1198,7 @@ export async function registerRoutes(
       const { base, quote } = tradablePair;
 
       const tickerResp = await axios.get(
-        `https://api.binance.com/api/v3/ticker/price?symbol=${pair}`,
+        `https://data-api.binance.vision/api/v3/ticker/price?symbol=${pair}`,
         { timeout: 10000 }
       );
       const marketPrice = parseFloat(tickerResp.data.price);
@@ -1278,13 +1313,9 @@ export async function registerRoutes(
 
       let priceMap: Record<string, number> = { USDT: 1, INR: 0 };
       try {
-        const ids = Object.values(COINGECKO_IDS).join(",");
-        const priceResp = await axios.get(
-          `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`,
-          { timeout: 10000 }
-        );
-        for (const [symbol, geckoId] of Object.entries(COINGECKO_IDS)) {
-          priceMap[symbol] = priceResp.data?.[geckoId]?.usd || 0;
+        const prices = await fetchPrices();
+        for (const [symbol, data] of Object.entries(prices)) {
+          priceMap[symbol] = data.usd;
         }
       } catch {
         priceMap = { USDT: 1, INR: 0, BTC: 0, ETH: 0, BNB: 0 };
@@ -1334,13 +1365,9 @@ export async function registerRoutes(
 
       let priceMap: Record<string, number> = { USDT: 1, INR: 0 };
       try {
-        const ids = Object.values(COINGECKO_IDS).join(",");
-        const priceResp = await axios.get(
-          `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`,
-          { timeout: 10000 }
-        );
-        for (const [symbol, geckoId] of Object.entries(COINGECKO_IDS)) {
-          priceMap[symbol] = priceResp.data?.[geckoId]?.usd || 0;
+        const prices = await fetchPrices();
+        for (const [symbol, data] of Object.entries(prices)) {
+          priceMap[symbol] = data.usd;
         }
       } catch {}
 
