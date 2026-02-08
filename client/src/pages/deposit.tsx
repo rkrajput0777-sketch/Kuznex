@@ -21,11 +21,22 @@ import {
   AlertCircle,
   ArrowUpRight,
   Shield,
+  Info,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Transaction } from "@shared/schema";
+
+interface NetworkConfig {
+  id: string;
+  name: string;
+  chainId: number;
+  explorer: string;
+  minDeposit: number;
+  minWithdrawal: number;
+  withdrawalFee: number;
+}
 
 function ConfirmationBar({ current, required }: { current: number; required: number }) {
   const percentage = Math.min((current / required) * 100, 100);
@@ -79,9 +90,13 @@ export default function Deposit() {
   const [withdrawCurrency, setWithdrawCurrency] = useState("USDT");
   const [withdrawNetwork, setWithdrawNetwork] = useState("bsc");
 
+  const { data: networkConfigs } = useQuery<NetworkConfig[]>({
+    queryKey: ["/api/network-config"],
+  });
+
   const { data: depositInfo } = useQuery<{
     addresses: Record<string, string>;
-    networks: Array<{ id: string; name: string; explorer: string }>;
+    networks: NetworkConfig[];
   }>({
     queryKey: ["/api/deposit/address"],
     enabled: !!user,
@@ -121,6 +136,26 @@ export default function Deposit() {
     },
   });
 
+  const networks = useMemo(() => networkConfigs || depositInfo?.networks || [], [networkConfigs, depositInfo]);
+
+  const selectedDepositConfig = useMemo(() => networks.find(n => n.id === selectedNetwork), [networks, selectedNetwork]);
+  const selectedWithdrawConfig = useMemo(() => networks.find(n => n.id === withdrawNetwork), [networks, withdrawNetwork]);
+
+  const withdrawFee = selectedWithdrawConfig?.withdrawalFee || 0;
+  const minWithdrawal = selectedWithdrawConfig?.minWithdrawal || 0;
+  const withdrawAmountNum = parseFloat(withdrawAmount) || 0;
+  const receiveAmount = Math.max(0, withdrawAmountNum - withdrawFee);
+
+  const withdrawError = useMemo(() => {
+    if (!withdrawAmount) return null;
+    if (withdrawAmountNum <= 0) return "Invalid amount";
+    if (withdrawAmountNum < minWithdrawal) return `Minimum withdrawal on ${selectedWithdrawConfig?.name || withdrawNetwork} is ${minWithdrawal} USDT`;
+    if (withdrawAmountNum <= withdrawFee) return `Amount must be greater than the network fee of ${withdrawFee} USDT`;
+    const balance = parseFloat(getWalletBalance(withdrawCurrency));
+    if (withdrawAmountNum > balance) return "Insufficient balance for withdrawal including network fee";
+    return null;
+  }, [withdrawAmount, withdrawAmountNum, minWithdrawal, withdrawFee, withdrawCurrency, selectedWithdrawConfig]);
+
   if (authLoading) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   }
@@ -144,6 +179,10 @@ export default function Deposit() {
       toast({ title: "Error", description: "Please fill in all fields.", variant: "destructive" });
       return;
     }
+    if (withdrawError) {
+      toast({ title: "Error", description: withdrawError, variant: "destructive" });
+      return;
+    }
     withdrawMutation.mutate({
       currency: withdrawCurrency,
       amount: withdrawAmount,
@@ -152,18 +191,15 @@ export default function Deposit() {
     });
   };
 
-  const getWalletBalance = (currency: string) => {
+  function getWalletBalance(currency: string) {
     const w = wallets?.find(w => w.currency === currency);
     return w ? parseFloat(w.balance).toFixed(4) : "0.0000";
-  };
+  }
 
-  const networkLabels: Record<string, string> = {
-    ethereum: "Ethereum (ERC20)",
-    bsc: "BSC (BEP20)",
-    polygon: "Polygon (MATIC)",
-    base: "Base",
+  const networkLabel = (n: string) => {
+    const net = networks.find(x => x.id === n);
+    return net?.name || n;
   };
-  const networkLabel = (n: string) => networkLabels[n] || n;
 
   return (
     <div className="min-h-screen bg-background">
@@ -215,10 +251,9 @@ export default function Deposit() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="ethereum">Ethereum (ERC20)</SelectItem>
-                        <SelectItem value="bsc">BSC (BEP20)</SelectItem>
-                        <SelectItem value="polygon">Polygon (MATIC)</SelectItem>
-                        <SelectItem value="base">Base</SelectItem>
+                        {networks.map(n => (
+                          <SelectItem key={n.id} value={n.id} data-testid={`option-deposit-network-${n.id}`}>{n.name}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -250,13 +285,24 @@ export default function Deposit() {
                   </div>
                 </div>
 
+                {selectedDepositConfig && (
+                  <Card className="p-3 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+                    <div className="flex gap-2">
+                      <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                      <div className="text-xs text-blue-800 dark:text-blue-200">
+                        <p className="font-medium">Minimum Deposit: {selectedDepositConfig.minDeposit} USDT</p>
+                        <p className="mt-1">Send only {selectedCurrency} to this address on the <span className="font-semibold">{selectedDepositConfig.name}</span> network. Deposits below the minimum will be ignored.</p>
+                      </div>
+                    </div>
+                  </Card>
+                )}
+
                 <Card className="p-3 bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
                   <div className="flex gap-2">
                     <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                     <div className="text-xs text-amber-800 dark:text-amber-200 space-y-1">
                       <p className="font-medium">Important:</p>
-                      <p>This is a single EVM address that works on all networks (ETH, BSC, Polygon, Base).</p>
-                      <p>Send only {selectedCurrency} on the {networkLabel(selectedNetwork)} network. Deposits are detected automatically across all chains. 12 block confirmations required.</p>
+                      <p>This is a single EVM address that works across all 8 supported networks. Deposits are auto-detected with 12 block confirmations required.</p>
                     </div>
                   </div>
                 </Card>
@@ -346,10 +392,9 @@ export default function Deposit() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="ethereum">Ethereum (ERC20)</SelectItem>
-                        <SelectItem value="bsc">BSC (BEP20)</SelectItem>
-                        <SelectItem value="polygon">Polygon (MATIC)</SelectItem>
-                        <SelectItem value="base">Base</SelectItem>
+                        {networks.map(n => (
+                          <SelectItem key={n.id} value={n.id} data-testid={`option-withdraw-network-${n.id}`}>{n.name}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -387,10 +432,40 @@ export default function Deposit() {
                   />
                 </div>
 
+                {selectedWithdrawConfig && (
+                  <Card className="p-3 bg-secondary/30 border-border">
+                    <div className="space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Network Fee</span>
+                        <span className="font-medium text-foreground" data-testid="text-network-fee">{withdrawFee} {withdrawCurrency}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Min Withdrawal</span>
+                        <span className="font-medium text-foreground" data-testid="text-min-withdrawal">{minWithdrawal} USDT</span>
+                      </div>
+                      {withdrawAmountNum > 0 && (
+                        <div className="flex items-center justify-between border-t border-border pt-2">
+                          <span className="text-muted-foreground font-medium">You Receive</span>
+                          <span className={`font-semibold ${receiveAmount > 0 ? "text-green-600" : "text-red-500"}`} data-testid="text-receive-amount">
+                            {receiveAmount > 0 ? receiveAmount.toFixed(4) : "0.0000"} {withdrawCurrency}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                )}
+
+                {withdrawError && (
+                  <div className="flex items-center gap-2 text-xs text-red-600" data-testid="text-withdraw-error">
+                    <AlertCircle className="w-3 h-3 shrink-0" />
+                    <span>{withdrawError}</span>
+                  </div>
+                )}
+
                 <Button
                   className="w-full"
                   onClick={handleWithdraw}
-                  disabled={withdrawMutation.isPending || !withdrawAmount || !withdrawAddress}
+                  disabled={withdrawMutation.isPending || !withdrawAmount || !withdrawAddress || !!withdrawError}
                   data-testid="button-submit-withdraw"
                 >
                   {withdrawMutation.isPending ? (

@@ -4,7 +4,7 @@ import passport from "passport";
 import { storage } from "./storage";
 import { setupAuth, requireAuth } from "./auth";
 import { registerSchema, swapRequestSchema, inrDepositSchema, inrWithdrawSchema, withdrawRequestSchema } from "@shared/schema";
-import { COINGECKO_IDS, SWAP_SPREAD_PERCENT, ADMIN_BANK_DETAILS, SUPPORTED_NETWORKS, SUPPORTED_CHAINS } from "@shared/constants";
+import { COINGECKO_IDS, SWAP_SPREAD_PERCENT, ADMIN_BANK_DETAILS, SUPPORTED_NETWORKS, SUPPORTED_CHAINS, type ChainConfig } from "@shared/constants";
 import axios from "axios";
 import multer from "multer";
 import path from "path";
@@ -302,6 +302,10 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/network-config", (_req, res) => {
+    res.json(SUPPORTED_NETWORKS);
+  });
+
   app.get("/api/deposit/address", requireAuth, async (req, res) => {
     try {
       const userId = getEffectiveUserId(req);
@@ -354,10 +358,26 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid amount" });
       }
 
+      const chain = SUPPORTED_CHAINS[network];
+      if (!chain) {
+        return res.status(400).json({ message: "Unsupported network" });
+      }
+
+      if (numAmount < chain.minWithdrawal) {
+        return res.status(400).json({ message: `Minimum withdrawal on ${chain.name} is ${chain.minWithdrawal} USDT equivalent` });
+      }
+
+      const networkFee = chain.withdrawalFee;
+      if (numAmount <= networkFee) {
+        return res.status(400).json({ message: `Amount must be greater than the network fee of ${networkFee} USDT` });
+      }
+
       const wallet = await storage.getWallet(userId, currency);
       if (!wallet || parseFloat(wallet.balance) < numAmount) {
-        return res.status(400).json({ message: "Insufficient balance" });
+        return res.status(400).json({ message: "Insufficient balance for withdrawal including network fee" });
       }
+
+      const receiveAmount = numAmount - networkFee;
 
       const newBalance = (parseFloat(wallet.balance) - numAmount).toFixed(8);
       await storage.updateWalletBalance(userId, currency, newBalance);
@@ -375,10 +395,10 @@ export async function registerRoutes(
         from_address: null,
         to_address: null,
         withdraw_address: withdrawAddress,
-        admin_note: null,
+        admin_note: `Fee: ${networkFee} ${currency} | User receives: ${receiveAmount.toFixed(8)} ${currency}`,
       });
 
-      res.json(tx);
+      res.json({ ...tx, networkFee, receiveAmount: receiveAmount.toFixed(8) });
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Withdrawal request failed" });
     }
@@ -665,15 +685,19 @@ export async function registerRoutes(
       if (masterKey && tx.withdraw_address) {
         try {
           const chain = SUPPORTED_CHAINS[tx.network];
-          const rpcUrl = chain?.rpcUrl || "https://bsc-dataseed.binance.org";
+          if (!chain) throw new Error(`Unsupported network: ${tx.network}`);
+          const rpcUrl = chain.rpcUrl;
           const provider = new ethers.JsonRpcProvider(rpcUrl);
           const signer = new ethers.Wallet(masterKey, provider);
+          const networkFee = chain.withdrawalFee;
+          const sendAmount = Math.max(0, parseFloat(tx.amount) - networkFee);
+          if (sendAmount <= 0) throw new Error("Send amount after fee deduction is zero or negative");
           const txResp = await signer.sendTransaction({
             to: tx.withdraw_address,
-            value: ethers.parseEther(tx.amount),
+            value: ethers.parseEther(sendAmount.toFixed(18)),
           });
           onChainTxHash = txResp.hash;
-          console.log(`[Admin] Withdrawal sent on ${tx.network}: ${txResp.hash}`);
+          console.log(`[Admin] Withdrawal sent on ${tx.network}: ${txResp.hash} (${sendAmount} after ${networkFee} fee)`);
         } catch (err: any) {
           console.error(`[Admin] On-chain send failed on ${tx.network}:`, err.message);
         }

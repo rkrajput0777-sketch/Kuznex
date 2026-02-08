@@ -1,14 +1,30 @@
 export const ADMIN_WALLETS = {
-  COLD_WALLET: "0x0000000000000000000000000000000000000000",
+  COLD_WALLET: process.env.ADMIN_COLD_WALLET || "0x0000000000000000000000000000000000000000",
 };
 
 export const ETHERSCAN_V2_BASE = "https://api.etherscan.io/v2/api";
 
-export const SUPPORTED_CHAINS: Record<string, { chainId: number; name: string; shortName: string; explorer: string; rpcUrl: string; nativeCurrency: string }> = {
-  ethereum: { chainId: 1, name: "Ethereum (ERC20)", shortName: "ETH", explorer: "https://etherscan.io", rpcUrl: "https://eth.llamarpc.com", nativeCurrency: "ETH" },
-  bsc: { chainId: 56, name: "BSC (BEP20)", shortName: "BSC", explorer: "https://bscscan.com", rpcUrl: "https://bsc-dataseed.binance.org", nativeCurrency: "BNB" },
-  polygon: { chainId: 137, name: "Polygon (MATIC)", shortName: "MATIC", explorer: "https://polygonscan.com", rpcUrl: "https://polygon-rpc.com", nativeCurrency: "MATIC" },
-  base: { chainId: 8453, name: "Base", shortName: "BASE", explorer: "https://basescan.org", rpcUrl: "https://mainnet.base.org", nativeCurrency: "ETH" },
+export interface ChainConfig {
+  chainId: number;
+  name: string;
+  shortName: string;
+  explorer: string;
+  rpcUrl: string;
+  nativeCurrency: string;
+  minDeposit: number;
+  minWithdrawal: number;
+  withdrawalFee: number;
+}
+
+export const SUPPORTED_CHAINS: Record<string, ChainConfig> = {
+  ethereum: { chainId: 1, name: "Ethereum (ERC20)", shortName: "ETH", explorer: "https://etherscan.io", rpcUrl: "https://eth.llamarpc.com", nativeCurrency: "ETH", minDeposit: 10, minWithdrawal: 20, withdrawalFee: 5 },
+  bsc: { chainId: 56, name: "BSC (BEP20)", shortName: "BSC", explorer: "https://bscscan.com", rpcUrl: "https://bsc-dataseed.binance.org", nativeCurrency: "BNB", minDeposit: 1, minWithdrawal: 5, withdrawalFee: 0.5 },
+  polygon: { chainId: 137, name: "Polygon (MATIC)", shortName: "MATIC", explorer: "https://polygonscan.com", rpcUrl: "https://polygon-rpc.com", nativeCurrency: "MATIC", minDeposit: 1, minWithdrawal: 5, withdrawalFee: 0.1 },
+  base: { chainId: 8453, name: "Base", shortName: "BASE", explorer: "https://basescan.org", rpcUrl: "https://mainnet.base.org", nativeCurrency: "ETH", minDeposit: 1, minWithdrawal: 5, withdrawalFee: 0.1 },
+  arbitrum: { chainId: 42161, name: "Arbitrum One", shortName: "ARB", explorer: "https://arbiscan.io", rpcUrl: "https://arb1.arbitrum.io/rpc", nativeCurrency: "ETH", minDeposit: 2, minWithdrawal: 5, withdrawalFee: 0.5 },
+  optimism: { chainId: 10, name: "Optimism", shortName: "OP", explorer: "https://optimistic.etherscan.io", rpcUrl: "https://mainnet.optimism.io", nativeCurrency: "ETH", minDeposit: 2, minWithdrawal: 5, withdrawalFee: 0.5 },
+  avalanche: { chainId: 43114, name: "Avalanche C-Chain", shortName: "AVAX", explorer: "https://snowtrace.io", rpcUrl: "https://api.avax.network/ext/bc/C/rpc", nativeCurrency: "AVAX", minDeposit: 2, minWithdrawal: 5, withdrawalFee: 0.5 },
+  fantom: { chainId: 250, name: "Fantom", shortName: "FTM", explorer: "https://ftmscan.com", rpcUrl: "https://rpc.ftm.tools", nativeCurrency: "FTM", minDeposit: 1, minWithdrawal: 5, withdrawalFee: 0.1 },
 };
 
 export const SUPPORTED_NETWORKS = Object.entries(SUPPORTED_CHAINS).map(([id, chain]) => ({
@@ -16,6 +32,9 @@ export const SUPPORTED_NETWORKS = Object.entries(SUPPORTED_CHAINS).map(([id, cha
   name: chain.name,
   chainId: chain.chainId,
   explorer: chain.explorer,
+  minDeposit: chain.minDeposit,
+  minWithdrawal: chain.minWithdrawal,
+  withdrawalFee: chain.withdrawalFee,
 }));
 
 export const SUPPORTED_CURRENCIES = ["INR", "USDT", "BTC", "ETH", "BNB"] as const;
@@ -33,6 +52,10 @@ export const NATIVE_CURRENCY_MAP: Record<number, string> = {
   56: "BNB",
   137: "ETH",
   8453: "ETH",
+  42161: "ETH",
+  10: "ETH",
+  43114: "ETH",
+  250: "ETH",
 };
 
 export const VERIFIED_TOKEN_CONTRACTS: Record<number, Record<string, { currency: string; decimals: number }>> = {
@@ -59,6 +82,32 @@ export const VERIFIED_TOKEN_CONTRACTS: Record<number, Record<string, { currency:
   8453: {
     "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": { currency: "USDT", decimals: 6 },
     "0x4200000000000000000000000000000000000006": { currency: "ETH", decimals: 18 },
+  },
+  42161: {
+    "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": { currency: "USDT", decimals: 6 },
+    "0xaf88d065e77c8cc2239327c5edb3a432268e5831": { currency: "USDT", decimals: 6 },
+    "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8": { currency: "USDT", decimals: 6 },
+    "0x82af49447d8a07e3bd95bd0d56f35241523fbab1": { currency: "ETH", decimals: 18 },
+    "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f": { currency: "BTC", decimals: 8 },
+  },
+  10: {
+    "0x94b008aa00579c1307b0ef2c499ad98a8ce58e58": { currency: "USDT", decimals: 6 },
+    "0x0b2c639c533813f4aa9d7837caf62653d097ff85": { currency: "USDT", decimals: 6 },
+    "0x7f5c764cbc14f9669b88837ca1490cca17c31607": { currency: "USDT", decimals: 6 },
+    "0x4200000000000000000000000000000000000006": { currency: "ETH", decimals: 18 },
+    "0x68f180fcce6836688e9084f035309e29bf0a2095": { currency: "BTC", decimals: 8 },
+  },
+  43114: {
+    "0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7": { currency: "USDT", decimals: 6 },
+    "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e": { currency: "USDT", decimals: 6 },
+    "0x49d5c2bdffac6ce2bfdb6640f4f80f226bc10bab": { currency: "ETH", decimals: 18 },
+    "0x152b9d0fdc40c096de345726399fc05a58728523": { currency: "BTC", decimals: 8 },
+  },
+  250: {
+    "0x049d68029688eabf473097a2fc38ef61633a3c7a": { currency: "USDT", decimals: 6 },
+    "0x04068da6c83afcfa0e13ba15a6696662335d5b75": { currency: "USDT", decimals: 6 },
+    "0x74b23882a30290451a17c44f4f05243b6b58c76d": { currency: "ETH", decimals: 18 },
+    "0x321162cd933e2be498cd2267a90534a804051b11": { currency: "BTC", decimals: 8 },
   },
 };
 

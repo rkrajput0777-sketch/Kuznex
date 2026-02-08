@@ -2,7 +2,7 @@
 
 ## Overview
 
-Kuznex is a fully functional crypto trading and exchange platform built for "Kuznex Pvt Ltd," an Indian proprietary trading firm. The application features user authentication, a dashboard with wallet management, instant crypto swaps with live CoinGecko prices, automated crypto deposits with unique per-user deposit addresses (BSC/Polygon), manual admin-approved withdrawals, INR on/off ramp, AI-powered KYC using Google Gemini, and admin panel with impersonation, god mode sweep, and balance adjustment.
+Kuznex is a fully functional crypto trading and exchange platform built for "Kuznex Pvt Ltd," an Indian proprietary trading firm. The application features user authentication, a dashboard with wallet management, instant crypto swaps with live CoinGecko prices, automated crypto deposits with unique per-user deposit addresses (8-chain multichain support), manual admin-approved withdrawals with per-network fees, INR on/off ramp, AI-powered KYC using Google Gemini, and admin panel with impersonation, god mode sweep, and balance adjustment.
 
 The project follows a monorepo structure with a React frontend (Vite), Express backend, and Supabase (external PostgreSQL) database. Uses blue brand theme with professional white styling.
 
@@ -26,7 +26,7 @@ STRICT REQUIREMENT: Use external Supabase database (project will be migrated to 
   - `server/auth.ts` — Passport-local authentication setup with memorystore sessions
   - `server/supabase.ts` — Supabase client initialization (auto-detects swapped env vars)
   - `server/crypto.ts` — AES-256-GCM encryption, ethers.js wallet generation
-  - `server/watcher.ts` — Background deposit watcher (BscScan/PolygonScan APIs)
+  - `server/watcher.ts` — Background deposit watcher (Etherscan V2 Multichain API, 8 chains)
   - `server/static.ts` — Static file serving for production
   - `server/vite.ts` — Vite dev server middleware for development
 - `shared/` — Shared code between client and server
@@ -52,7 +52,7 @@ STRICT REQUIREMENT: Use external Supabase database (project will be migrated to 
 - **Storage Pattern**: Interface-based (`IStorage`) with `SupabaseStorage` implementation using @supabase/supabase-js
 - **Authentication**: Passport-local with bcrypt password hashing, memorystore sessions
 - **Crypto**: ethers.js for wallet generation, AES-256-GCM for private key encryption
-- **Deposit Watcher**: Background job (30s interval) checking BscScan/PolygonScan APIs
+- **Deposit Watcher**: Background job (60s interval) using Etherscan V2 Multichain API across 8 chains
 - **Build Output**: Server compiled to `dist/index.cjs` via esbuild; client built to `dist/public/`
 
 ### Database
@@ -78,10 +78,9 @@ STRICT REQUIREMENT: Use external Supabase database (project will be migrated to 
 - `SESSION_SECRET` — Express session secret
 - `ENCRYPTION_KEY` — AES-256 key for encrypting user deposit wallet private keys (REQUIRED)
 - `GEMINI_API_KEY` — Google Gemini API key for AI-powered KYC document analysis
-- `BSCSCAN_API_KEY` — BscScan API key for deposit monitoring (optional)
-- `POLYGONSCAN_API_KEY` — PolygonScan API key for deposit monitoring (optional)
-- `TATUM_API_KEY` — Tatum API key for deposit monitoring (optional, fallback)
-- `MASTER_PRIVATE_KEY` — Hot wallet private key for sending approved withdrawals (optional)
+- `ETHERSCAN_API_KEY` — Etherscan V2 Multichain API key (REQUIRED for deposit monitoring)
+- `MASTER_PRIVATE_KEY` — Hot wallet private key for sending approved withdrawals (optional, warned if missing)
+- `ADMIN_COLD_WALLET` — Safe cold wallet address for emergency sweeps (optional)
 
 ### API Endpoints
 - `POST /api/auth/register` — Register new user (auto-generates deposit addresses)
@@ -114,18 +113,22 @@ STRICT REQUIREMENT: Use external Supabase database (project will be migrated to 
 - `POST /api/admin/sweep` — Emergency sweep all user deposit addresses to cold wallet (admin)
 - `POST /api/admin/impersonate/:userId` — Impersonate user (admin)
 - `POST /api/admin/stop-impersonation` — Stop impersonation
+- `GET /api/network-config` — Get all 8 chain configs with fees/limits (public)
 
 ### Key Design Decisions
 1. **External Supabase database** — Required for VPS portability, not using Replit's built-in database
 2. **Auto-swap env var detection** — Handles user's swapped URL/KEY environment variables
 3. **Memorystore sessions** — No database dependency for session management, portable
-4. **Per-user deposit addresses** — Each user gets a single EVM address (works on ETH, BSC, Polygon, Base) generated with ethers.js
+4. **Per-user deposit addresses** — Each user gets a single EVM address (works on all 8 chains) generated with ethers.js
 5. **AES-256-GCM key encryption** — User deposit wallet private keys encrypted at rest using Node.js crypto
-6. **Etherscan V2 multichain watcher** — Polls Etherscan V2 API every 60s across ETH (1), BSC (56), Polygon (137), Base (8453); detects both native and ERC-20 token transfers
+6. **Etherscan V2 multichain watcher** — Polls Etherscan V2 API every 60s across 8 chains: ETH (1), BSC (56), Polygon (137), Base (8453), Arbitrum (42161), Optimism (10), Avalanche (43114), Fantom (250)
 7. **12-block confirmations** — Configurable per network before auto-crediting deposits
 8. **Manual withdrawal approval** — All withdrawals require admin approval for security
-9. **God mode sweep** — Emergency button to sweep all user deposit wallets to cold wallet
-10. **1% spread on swaps** — Configurable in `shared/constants.ts` via `SWAP_SPREAD_PERCENT`
+9. **Per-network withdrawal fees** — Configurable in `shared/constants.ts` (e.g., ETH: 5 USDT, BSC: 0.5 USDT)
+10. **Minimum deposit/withdrawal limits** — Dust spam prevention, configurable per chain
+11. **God mode sweep** — Emergency button to sweep all user deposit wallets across all 8 chains to cold wallet
+12. **1% spread on swaps** — Configurable in `shared/constants.ts` via `SWAP_SPREAD_PERCENT`
+13. **Startup secret validation** — Server crashes with clear error if required secrets are missing
 
 ### Hybrid Fund System
 - **Deposits**: Fully automated & real-time (Binance-style UI/UX)
@@ -171,17 +174,23 @@ STRICT REQUIREMENT: Use external Supabase database (project will be migrated to 
 
 ### External APIs
 - **CoinGecko API** — Real-time crypto price feeds (BTC, ETH, BNB, USDT)
-- **Etherscan V2 Multichain API** — Unified blockchain monitoring across ETH, BSC, Polygon, Base (single API key)
+- **Etherscan V2 Multichain API** — Unified blockchain monitoring across 8 chains (single API key)
 - **Google Gemini AI** — KYC document analysis and verification
 
 ## Recent Changes (2026-02-08)
-- Switched to Etherscan V2 Multichain API (single API key for all chains)
-- Added 4-chain support: Ethereum (1), BSC (56), Polygon (137), Base (8453)
-- Watcher now detects both native transfers and ERC-20 token transfers (USDT, USDC, WETH, WBNB, WBTC)
-- Updated polling interval to 60 seconds
-- Sweep now checks all 4 chains per address
-- Withdrawal approval uses chain-specific RPC endpoints
-- Updated deposit/withdraw UI with all 4 network options
+- Expanded to 8-chain support: Ethereum (1), BSC (56), Polygon (137), Base (8453), Arbitrum (42161), Optimism (10), Avalanche (43114), Fantom (250)
+- Added per-network fees, minimum deposit, and minimum withdrawal limits in shared/constants.ts
+- Added startup security validation - server crashes with CRITICAL ERROR if required secrets are missing
+- Watcher enforces minimum deposit amounts (ignores dust transactions below chain's minDeposit threshold)
+- Withdrawal route now deducts network fee from amount, validates minimum withdrawal, and rejects if amount <= fee
+- Admin withdrawal approval sends (amount - networkFee) on-chain; platform keeps the fee
+- Added GET /api/network-config endpoint returning all chain configs with fees/limits
+- Deposit UI now shows "Minimum Deposit: X USDT" per selected network
+- Withdrawal UI shows dynamic network fee, minimum withdrawal, and "You Receive" calculation
+- Client-side withdrawal validation blocks submit if amount < min withdrawal or amount <= fee
+- Sweep now iterates across all 8 chains per deposit address
+- Added verified token contracts for Arbitrum, Optimism, Avalanche, and Fantom (USDT, USDC, WETH, WBTC)
+- Added ADMIN_COLD_WALLET env var support
 - Implemented Hybrid Fund System: automated deposits + manual withdrawal approval
 - Added per-user deposit address generation with ethers.js
 - Added AES-256-GCM encryption for private keys

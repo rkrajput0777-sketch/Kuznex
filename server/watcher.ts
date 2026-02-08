@@ -120,6 +120,25 @@ function networkIdFromChainId(chainId: number): string {
   return "unknown";
 }
 
+function getMinDepositForNetwork(networkId: string): number {
+  const chain = SUPPORTED_CHAINS[networkId];
+  return chain?.minDeposit || 1;
+}
+
+async function getUsdtEquivalent(amount: number, currency: string): Promise<number> {
+  if (currency === "USDT") return amount;
+  try {
+    const cgIds: Record<string, string> = { BTC: "bitcoin", ETH: "ethereum", BNB: "binancecoin" };
+    const cgId = cgIds[currency];
+    if (!cgId) return amount;
+    const resp = await axios.get(`https://api.coingecko.com/api/v3/simple/price?ids=${cgId}&vs_currencies=usd`, { timeout: 5000 });
+    const price = resp.data[cgId]?.usd || 0;
+    return amount * price;
+  } catch {
+    return amount;
+  }
+}
+
 async function processDeposits(): Promise<void> {
   const apiKey = getApiKey();
   if (!apiKey) return;
@@ -149,12 +168,18 @@ async function processDeposits(): Promise<void> {
       if (!currentBlock) continue;
 
       const nativeCurrency = NATIVE_CURRENCY_MAP[chainId] || "ETH";
+      const minDeposit = getMinDepositForNetwork(networkId);
 
       for (const [address, info] of Array.from(uniqueAddresses.entries())) {
         try {
           const nativeTxs = await getNormalTransactions(address, chainId, currentBlock);
           for (const tx of nativeTxs) {
             if (tx.value === "0") continue;
+            const nativeAmount = parseFloat(ethers.formatEther(tx.value));
+            const usdtEquiv = await getUsdtEquivalent(nativeAmount, nativeCurrency);
+            if (usdtEquiv < minDeposit) {
+              continue;
+            }
             const nativeInfo = { user_id: info.user_id, currency: nativeCurrency };
             await processIncomingTx(tx, nativeInfo, networkId);
           }
@@ -164,8 +189,13 @@ async function processDeposits(): Promise<void> {
             if (tx.value === "0") continue;
             const verifiedToken = resolveVerifiedToken(chainId, tx.contractAddress);
             if (!verifiedToken) continue;
-            const tokenInfo = { user_id: info.user_id, currency: verifiedToken.currency };
             const amount = ethers.formatUnits(tx.value, verifiedToken.decimals);
+            const numAmount = parseFloat(amount);
+            const usdtEquiv = await getUsdtEquivalent(numAmount, verifiedToken.currency);
+            if (usdtEquiv < minDeposit) {
+              continue;
+            }
+            const tokenInfo = { user_id: info.user_id, currency: verifiedToken.currency };
             await processIncomingTx(tx, tokenInfo, networkId, amount);
           }
         } catch (err: any) {
@@ -261,12 +291,12 @@ export function startDepositWatcher(intervalMs: number = 60000): void {
   const apiKey = getApiKey();
   if (!apiKey) {
     console.log("[Watcher] No ETHERSCAN_API_KEY configured. Deposit monitoring disabled.");
-    console.log("[Watcher] Set ETHERSCAN_API_KEY to enable auto-detection across ETH, BSC, Polygon, Base.");
     return;
   }
 
+  const chainList = Object.values(SUPPORTED_CHAINS).map(c => `${c.shortName} (${c.chainId})`).join(", ");
   console.log(`[Watcher] Starting Etherscan V2 multichain deposit watcher (interval: ${intervalMs / 1000}s)`);
-  console.log(`[Watcher] Monitoring chains: ${Object.values(SUPPORTED_CHAINS).map(c => `${c.shortName} (${c.chainId})`).join(", ")}`);
+  console.log(`[Watcher] Monitoring ${Object.keys(SUPPORTED_CHAINS).length} chains: ${chainList}`);
   processDeposits();
   watcherInterval = setInterval(processDeposits, intervalMs);
 }

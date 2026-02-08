@@ -57,6 +57,10 @@ export const NETWORK_CONFIRMATIONS: Record<string, number> = {
   bsc: 12,
   polygon: 12,
   base: 12,
+  arbitrum: 12,
+  optimism: 12,
+  avalanche: 12,
+  fantom: 12,
 };
 
 export function getRequiredConfirmations(network: string): number {

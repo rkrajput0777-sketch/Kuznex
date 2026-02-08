@@ -30,6 +30,16 @@ import type { Transaction } from "@shared/schema";
 
 type PendingWithdrawal = Transaction & { username?: string; email?: string };
 
+interface NetworkConfig {
+  id: string;
+  name: string;
+  chainId: number;
+  explorer: string;
+  minDeposit: number;
+  minWithdrawal: number;
+  withdrawalFee: number;
+}
+
 export default function AdminWithdrawals() {
   const { data: user, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
@@ -41,6 +51,10 @@ export default function AdminWithdrawals() {
   const [adjustUserId, setAdjustUserId] = useState("");
   const [adjustCurrency, setAdjustCurrency] = useState("USDT");
   const [adjustAmount, setAdjustAmount] = useState("");
+
+  const { data: networkConfigs } = useQuery<NetworkConfig[]>({
+    queryKey: ["/api/network-config"],
+  });
 
   const { data: pendingWithdrawals, isLoading: loadingWithdrawals } = useQuery<PendingWithdrawal[]>({
     queryKey: ["/api/admin/withdrawals"],
@@ -181,7 +195,7 @@ export default function AdminWithdrawals() {
                             {tx.email && <span className="ml-2">({tx.email})</span>}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            Network: {tx.network === "ethereum" ? "Ethereum (ERC20)" : tx.network === "bsc" ? "BSC (BEP20)" : tx.network === "polygon" ? "Polygon (MATIC)" : tx.network === "base" ? "Base" : tx.network}
+                            Network: {networkConfigs?.find(n => n.id === tx.network)?.name || tx.network}
                           </p>
                         </div>
                       </div>
@@ -308,7 +322,7 @@ export default function AdminWithdrawals() {
                   <h3 className="font-semibold text-red-700 dark:text-red-400">Sweep All User Deposit Wallets</h3>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  This will iterate through ALL user deposit addresses and sweep any remaining on-chain balance across all networks (ETH, BSC, Polygon, Base) to your cold wallet.
+                  This will iterate through ALL user deposit addresses and sweep any remaining on-chain balance across all {networkConfigs?.length || 8} supported networks to your cold wallet.
                   Use this only in emergencies.
                 </p>
 

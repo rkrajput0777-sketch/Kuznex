@@ -1,0 +1,54 @@
+Act as a Senior Blockchain Architect. We are finalizing the "Kuznex Exchange" with robust Multichain support.
+
+### 1. STRICT SECURITY & CONFIGURATION
+Before starting the server, you MUST validate that these Secrets exist. If missing, crash the app with a "CRITICAL ERROR" log asking for them:
+- MASTER_PRIVATE_KEY (Hot Wallet for withdrawals)
+- ADMIN_COLD_WALLET (Safe address for sweeps)
+- ENCRYPTION_KEY (To lock user data)
+- ETHERSCAN_API_KEY (The V2 Multichain Key: WX1UHZI4J8K6GHN7C7XT8HMFT5IUP1J75M)
+- SUPABASE_URL & SUPABASE_KEY
+
+### 2. MULTICHAIN NETWORK CONFIGURATION (The Brain)
+Create a centralized config file cryptoConfig.js supporting these Top 10 Chains:
+1. Ethereum (ERC20): ChainID 1 | Min Dep: 10 USDT | Min W/D: 20 USDT | Fee: 5 USDT
+2. BNB Chain (BEP20): ChainID 56 | Min Dep: 1 USDT | Min W/D: 5 USDT | Fee: 0.5 USDT
+3. Polygon (MATIC): ChainID 137 | Min Dep: 1 USDT | Min W/D: 5 USDT | Fee: 0.1 USDT
+4. Base: ChainID 8453 | Min Dep: 1 USDT | Min W/D: 5 USDT | Fee: 0.1 USDT
+5. Arbitrum: ChainID 42161 | Min Dep: 2 USDT | Min W/D: 5 USDT | Fee: 0.5 USDT
+6. Optimism: ChainID 10 | Min Dep: 2 USDT | Min W/D: 5 USDT | Fee: 0.5 USDT
+7. Avalanche: ChainID 43114 | Fee: 0.5 USDT
+8. Fantom: ChainID 250 | Fee: 0.1 USDT
+*(Use standard RPCs and ChainIDs for all)*
+
+### 3. DEPOSIT SYSTEM (Etherscan V2 Watcher)
+- User Side:
+  - Dropdown: "Select Network" (Lists the 8 chains above with logos).
+  - Show: "Send only USDT to this address. Minimum Deposit: [Amount] USDT".
+- Backend Watcher (Cron Job - 60s):
+  - Loop through ALL supported Chain IDs using the Etherscan V2 API.
+  - Endpoint: https://api.etherscan.io/v2/api?chainid={ID}&module=account&action=tokentx...
+  - Logic:
+    - If Incoming Amount < Min_Deposit: Ignore transaction (prevent dust spam).
+    - If Confirmations < 12: Show "Confirming" Progress Bar.
+    - If Confirmations >= 12: Credit User Balance.
+
+### 4. WITHDRAWAL SYSTEM (Fees & Limits)
+- User Side:
+  - Form: Select Network -> Enter Address -> Enter Amount.
+  - Dynamic UI: When user selects a network (e.g., Ethereum), update the "Network Fee" and "Min Withdrawal" text based on cryptoConfig.js.
+  - Calculation:
+    - You Receive = Amount Entered - Network Fee.
+    - Block submit if Amount < Min Withdrawal.
+    - Block submit if Amount > User Balance.
+- Backend Processing:
+  - Deduct full Amount from User Balance.
+  - Create "Pending" record.
+  - Admin Approval: Admin decrypts Hot Wallet Key -> Sends (Amount - Fee) to User. (We keep the Fee).
+
+### 5. FUND CONTROL (Sweep)
+- Admin Panel: Add a "Sweep Funds" button.
+- Logic: Iterate through all user wallets across all 8 chains. If Balance > Gas Fee, send everything to ADMIN_COLD_WALLET.
+
+### 6. UI/UX
+- Use a "White/Clean" Professional Theme (Binance Clone).
+- Ensure specific error messages: "Deposit amount too low" or "Insufficient balance for network fee".
