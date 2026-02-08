@@ -57,7 +57,7 @@ export default function AdminTdsReports() {
       if (!res.ok) throw new Error("Failed to load TDS report");
       return res.json();
     },
-    enabled: !!user?.isAdmin,
+    enabled: !!user?.isSuperAdmin,
   });
 
   if (authLoading) {
@@ -66,11 +66,6 @@ export default function AdminTdsReports() {
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
-  }
-
-  if (!user || !user.isAdmin) {
-    setLocation("/dashboard");
-    return null;
   }
 
   const handleExportCsv = () => {

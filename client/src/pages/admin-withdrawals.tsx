@@ -70,7 +70,7 @@ export default function AdminWithdrawals() {
 
   const { data: pendingWithdrawals, isLoading: loadingWithdrawals } = useQuery<PendingWithdrawal[]>({
     queryKey: ["/api/admin/withdrawals"],
-    enabled: !!user?.isAdmin,
+    enabled: !!user?.isSuperAdmin,
     refetchInterval: 15000,
   });
 
@@ -141,7 +141,6 @@ export default function AdminWithdrawals() {
   if (authLoading) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   }
-  if (!user?.isAdmin) { setLocation("/dashboard"); return null; }
 
   const handleLogout = () => {
     logout.mutate(undefined, { onSuccess: () => setLocation("/") });

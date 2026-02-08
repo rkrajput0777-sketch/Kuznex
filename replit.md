@@ -45,6 +45,13 @@ Kuznex is built as a monorepo, separating the application into `client/` (React 
 - Automatically generates wallet entries with deposit addresses for all supported currencies upon user registration.
 - Includes admin impersonation functionality.
 
+### Admin Access Control (Security Hardened)
+- **Super Admin Email**: Only `rkrajput0777@gmail.com` (hardcoded as `SUPER_ADMIN_EMAIL` in `shared/constants.ts`) can access admin routes.
+- **Backend**: `requireAdmin` middleware checks both `is_admin` flag AND email match; returns **404 Not Found** (not 403) to prevent route discovery.
+- **Frontend**: `AdminGuard` component (`client/src/components/admin-guard.tsx`) wraps all `/admin/*` routes in `App.tsx`; renders the generic 404 page for unauthorized users.
+- **API Response**: `/api/auth/me` returns `isSuperAdmin: true` only when both `is_admin` and email match.
+- **Inline admin checks**: Routes using `requireAuth` with inline admin checks (`/api/admin/user-stats`, `/api/admin/tds-report`) also verify email + return 404.
+
 ### Hybrid Fund System
 - **Deposits**: Fully automated and real-time. Each user receives a unique EVM deposit address. A background watcher monitors transactions across 8 chains, crediting user balances upon reaching a configurable confirmation threshold.
 - **Withdrawals**: Manual admin approval process. Users submit requests, balances are held, and administrators manually approve or reject, with on-chain transactions managed by a `MASTER_PRIVATE_KEY`.

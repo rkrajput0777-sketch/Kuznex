@@ -1,3 +1,5 @@
+export const SUPER_ADMIN_EMAIL = "rkrajput0777@gmail.com";
+
 export const ADMIN_WALLETS = {
   COLD_WALLET: process.env.ADMIN_COLD_WALLET || "0x0000000000000000000000000000000000000000",
 };

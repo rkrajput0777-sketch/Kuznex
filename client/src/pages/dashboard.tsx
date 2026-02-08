@@ -168,7 +168,7 @@ export default function Dashboard() {
                   INR Ramp
                 </Button>
               </Link>
-              {user.isAdmin && (
+              {user.isSuperAdmin && (
                 <>
                   <Link href="/admin/kyc-review">
                     <Button variant="ghost" size="sm" data-testid="link-nav-admin-kyc">

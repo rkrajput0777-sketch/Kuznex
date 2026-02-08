@@ -42,12 +42,12 @@ export default function AdminUsers() {
 
   const { data: allUsers, isLoading: usersLoading } = useQuery<AdminUser[]>({
     queryKey: ["/api/admin/users"],
-    enabled: !!user?.isAdmin,
+    enabled: !!user?.isSuperAdmin,
   });
 
   const { data: userStatsMap } = useQuery<Record<number, UserAnalytics>>({
     queryKey: ["/api/admin/user-stats"],
-    enabled: !!user?.isAdmin,
+    enabled: !!user?.isSuperAdmin,
     refetchInterval: 120000,
   });
 
@@ -73,11 +73,6 @@ export default function AdminUsers() {
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
-  }
-
-  if (!user || !user.isAdmin) {
-    setLocation("/dashboard");
-    return null;
   }
 
   const getKycBadge = (status: string) => {

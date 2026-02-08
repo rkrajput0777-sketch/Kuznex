@@ -17,6 +17,7 @@ import AdminTdsReports from "@/pages/admin-tds";
 import SpotTrade from "@/pages/spot-trade";
 import NotFound from "@/pages/not-found";
 import RequireKYC from "@/components/require-kyc";
+import AdminGuard from "@/components/admin-guard";
 
 function Router() {
   return (
@@ -25,10 +26,18 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/kyc" component={KycPage} />
-      <Route path="/admin/kyc-review" component={AdminKycReview} />
-      <Route path="/admin/users" component={AdminUsers} />
-      <Route path="/admin/withdrawals" component={AdminWithdrawals} />
-      <Route path="/admin/tds-reports" component={AdminTdsReports} />
+      <Route path="/admin/kyc-review">
+        <AdminGuard><AdminKycReview /></AdminGuard>
+      </Route>
+      <Route path="/admin/users">
+        <AdminGuard><AdminUsers /></AdminGuard>
+      </Route>
+      <Route path="/admin/withdrawals">
+        <AdminGuard><AdminWithdrawals /></AdminGuard>
+      </Route>
+      <Route path="/admin/tds-reports">
+        <AdminGuard><AdminTdsReports /></AdminGuard>
+      </Route>
       <Route path="/trade/:pair">
         {(params: { pair: string }) => (
           <RequireKYC><SpotTrade pair={params.pair} /></RequireKYC>

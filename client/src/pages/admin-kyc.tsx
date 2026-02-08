@@ -37,7 +37,7 @@ export default function AdminKycReview() {
 
   const { data: kycUsers, isLoading: usersLoading } = useQuery<KycUser[]>({
     queryKey: ["/api/admin/kyc"],
-    enabled: !!user?.isAdmin,
+    enabled: !!user?.isSuperAdmin,
   });
 
   const reviewMutation = useMutation({
@@ -59,26 +59,6 @@ export default function AdminKycReview() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    setLocation("/login");
-    return null;
-  }
-
-  if (!user.isAdmin) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full p-8 text-center">
-          <XCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-foreground mb-2" data-testid="text-admin-denied">Access Denied</h2>
-          <p className="text-muted-foreground mb-4">You do not have admin privileges.</p>
-          <Link href="/dashboard">
-            <Button data-testid="button-back-dashboard">Back to Dashboard</Button>
-          </Link>
-        </Card>
       </div>
     );
   }

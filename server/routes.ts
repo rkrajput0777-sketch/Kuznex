@@ -4,7 +4,7 @@ import passport from "passport";
 import { storage } from "./storage";
 import { setupAuth, requireAuth } from "./auth";
 import { registerSchema, swapRequestSchema, inrDepositSchema, inrWithdrawSchema, withdrawRequestSchema, spotOrderSchema } from "@shared/schema";
-import { COINGECKO_IDS, SWAP_SPREAD_PERCENT, ADMIN_BANK_DETAILS, SUPPORTED_NETWORKS, SUPPORTED_CHAINS, SPOT_TRADING_FEE, TRADABLE_PAIRS, VIEWABLE_PAIRS, TDS_RATE, type ChainConfig } from "@shared/constants";
+import { COINGECKO_IDS, SWAP_SPREAD_PERCENT, ADMIN_BANK_DETAILS, SUPPORTED_NETWORKS, SUPPORTED_CHAINS, SPOT_TRADING_FEE, TRADABLE_PAIRS, VIEWABLE_PAIRS, TDS_RATE, SUPER_ADMIN_EMAIL, type ChainConfig } from "@shared/constants";
 import axios from "axios";
 import multer from "multer";
 import path from "path";
@@ -55,8 +55,8 @@ function getEffectiveUserId(req: Request): number {
 }
 
 function requireAdmin(req: Request, res: Response, next: NextFunction) {
-  if (!req.isAuthenticated() || !req.user?.is_admin) {
-    return res.status(403).json({ message: "Admin access required" });
+  if (!req.isAuthenticated() || !req.user?.is_admin || req.user?.email !== SUPER_ADMIN_EMAIL) {
+    return res.status(404).json({ message: "Not found" });
   }
   next();
 }
@@ -192,6 +192,7 @@ export async function registerRoutes(
       email: user.email,
       kycStatus: user.kyc_status,
       isAdmin: user.is_admin,
+      isSuperAdmin: user.is_admin && user.email === SUPER_ADMIN_EMAIL,
     });
   });
 
@@ -1094,7 +1095,7 @@ export async function registerRoutes(
 
   app.get("/api/admin/user-stats", requireAuth, async (req: any, res) => {
     try {
-      if (!req.user?.is_admin) return res.status(403).json({ message: "Admin only" });
+      if (!req.user?.is_admin || req.user?.email !== SUPER_ADMIN_EMAIL) return res.status(404).json({ message: "Not found" });
 
       const usersWithWallets = await storage.getAllUsersWithWallets();
 
@@ -1154,7 +1155,7 @@ export async function registerRoutes(
 
   app.get("/api/admin/tds-report", requireAuth, async (req: any, res) => {
     try {
-      if (!req.user?.is_admin) return res.status(403).json({ message: "Admin only" });
+      if (!req.user?.is_admin || req.user?.email !== SUPER_ADMIN_EMAIL) return res.status(404).json({ message: "Not found" });
 
       const startDate = (req.query.start as string) || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0];
       const endDate = (req.query.end as string) || new Date().toISOString().split("T")[0];

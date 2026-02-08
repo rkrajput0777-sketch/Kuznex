@@ -9,6 +9,7 @@ export function useAuth() {
     email: string;
     kycStatus: string;
     isAdmin: boolean;
+    isSuperAdmin: boolean;
     impersonating?: boolean;
     adminId?: number;
     adminUsername?: string;
