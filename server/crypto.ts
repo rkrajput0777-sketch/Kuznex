@@ -44,13 +44,11 @@ export function generateDepositWallet(): { address: string; privateKey: string }
 }
 
 export function generateDepositWalletForUser(): { address: string; encryptedKey: string } {
-  const { address, privateKey } = generateDepositWallet();
-  let encryptedKey: string;
-  try {
-    encryptedKey = encryptPrivateKey(privateKey);
-  } catch {
-    encryptedKey = "";
+  if (!process.env.ENCRYPTION_KEY) {
+    throw new Error("ENCRYPTION_KEY environment variable is required for wallet generation. Set it before registering users.");
   }
+  const { address, privateKey } = generateDepositWallet();
+  const encryptedKey = encryptPrivateKey(privateKey);
   return { address, encryptedKey };
 }
 

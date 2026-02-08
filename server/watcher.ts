@@ -1,4 +1,5 @@
 import axios from "axios";
+import { ethers } from "ethers";
 import { storage } from "./storage";
 import { getRequiredConfirmations } from "./crypto";
 
@@ -67,9 +68,7 @@ async function checkAddressTransactions(
 }
 
 function weiToEther(wei: string): string {
-  const weiBig = BigInt(wei);
-  const etherStr = (Number(weiBig) / 1e18).toFixed(8);
-  return etherStr;
+  return ethers.formatEther(wei);
 }
 
 async function processDeposits(): Promise<void> {
