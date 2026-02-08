@@ -56,6 +56,18 @@ export default function Dashboard() {
   });
 
   const tiltRef = useRef<HTMLDivElement>(null);
+  const stopImpersonation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/stop-impersonation");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/wallet"] });
+      setLocation("/admin/users");
+    },
+  });
+
   useEffect(() => {
     const el = tiltRef.current;
     if (!el) return;
@@ -88,18 +100,6 @@ export default function Dashboard() {
     setLocation("/login");
     return null;
   }
-
-  const stopImpersonation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/admin/stop-impersonation");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/wallet"] });
-      setLocation("/admin/users");
-    },
-  });
 
   const handleLogout = () => {
     logout.mutate(undefined, { onSuccess: () => setLocation("/") });
