@@ -20,6 +20,7 @@ import {
 import { useState, useEffect, useRef, useMemo } from "react";
 import { motion } from "framer-motion";
 import kuznexLogo from "@assets/image_1770554564085.png";
+import DatabaseWithRestApi from "@/components/ui/database-with-rest-api";
 
 function useMousePosition() {
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -349,19 +350,38 @@ function PlatformSection() {
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="max-w-2xl mb-20">
-          <p className="text-sm font-medium text-primary mb-3 tracking-wider uppercase" data-testid="text-platform-label">
-            Platform
-          </p>
-          <h2 className="text-3xl sm:text-5xl font-bold mb-6 text-foreground leading-tight" data-testid="text-platform-heading">
-            Built for precision.
-            <br />
-            <span className="text-muted-foreground">Designed for clarity.</span>
-          </h2>
-          <p className="text-muted-foreground text-lg leading-relaxed" data-testid="text-platform-description">
-            Every tool on Kuznex is crafted to give you complete control
-            over your digital asset operations.
-          </p>
+        <div className="grid lg:grid-cols-2 gap-16 items-center mb-20">
+          <div>
+            <p className="text-sm font-medium text-primary mb-3 tracking-wider uppercase" data-testid="text-platform-label">
+              Platform
+            </p>
+            <h2 className="text-3xl sm:text-5xl font-bold mb-6 text-foreground leading-tight" data-testid="text-platform-heading">
+              Built for precision.
+              <br />
+              <span className="text-muted-foreground">Designed for clarity.</span>
+            </h2>
+            <p className="text-muted-foreground text-lg leading-relaxed" data-testid="text-platform-description">
+              Every tool on Kuznex is crafted to give you complete control
+              over your digital asset operations — from swap to settlement.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-center" data-testid="visual-api-animation">
+            <DatabaseWithRestApi
+              badgeTexts={{
+                first: "SWAP",
+                second: "TRADE",
+                third: "DEPOSIT",
+                fourth: "WITHDRAW",
+              }}
+              buttonTexts={{
+                first: "Kuznex",
+                second: "multichain",
+              }}
+              title="Asset operations via secure API layer"
+              circleText="API"
+            />
+          </div>
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
