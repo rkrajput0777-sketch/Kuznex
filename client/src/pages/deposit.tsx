@@ -157,7 +157,13 @@ export default function Deposit() {
     return w ? parseFloat(w.balance).toFixed(4) : "0.0000";
   };
 
-  const networkLabel = (n: string) => n === "bsc" ? "BSC (BEP20)" : n === "polygon" ? "Polygon (MATIC)" : n;
+  const networkLabels: Record<string, string> = {
+    ethereum: "Ethereum (ERC20)",
+    bsc: "BSC (BEP20)",
+    polygon: "Polygon (MATIC)",
+    base: "Base",
+  };
+  const networkLabel = (n: string) => networkLabels[n] || n;
 
   return (
     <div className="min-h-screen bg-background">
@@ -209,8 +215,10 @@ export default function Deposit() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="ethereum">Ethereum (ERC20)</SelectItem>
                         <SelectItem value="bsc">BSC (BEP20)</SelectItem>
                         <SelectItem value="polygon">Polygon (MATIC)</SelectItem>
+                        <SelectItem value="base">Base</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -247,8 +255,8 @@ export default function Deposit() {
                     <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                     <div className="text-xs text-amber-800 dark:text-amber-200 space-y-1">
                       <p className="font-medium">Important:</p>
-                      <p>Send only {selectedCurrency} on the {networkLabel(selectedNetwork)} network to this address.</p>
-                      <p>Deposits are detected automatically. 12 block confirmations required.</p>
+                      <p>This is a single EVM address that works on all networks (ETH, BSC, Polygon, Base).</p>
+                      <p>Send only {selectedCurrency} on the {networkLabel(selectedNetwork)} network. Deposits are detected automatically across all chains. 12 block confirmations required.</p>
                     </div>
                   </div>
                 </Card>
@@ -338,8 +346,10 @@ export default function Deposit() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="ethereum">Ethereum (ERC20)</SelectItem>
                         <SelectItem value="bsc">BSC (BEP20)</SelectItem>
                         <SelectItem value="polygon">Polygon (MATIC)</SelectItem>
+                        <SelectItem value="base">Base</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

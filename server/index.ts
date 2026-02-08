@@ -99,7 +99,7 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
-      startDepositWatcher(30000);
+      startDepositWatcher(60000);
     },
   );
 })();

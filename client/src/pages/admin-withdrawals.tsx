@@ -181,7 +181,7 @@ export default function AdminWithdrawals() {
                             {tx.email && <span className="ml-2">({tx.email})</span>}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            Network: {tx.network === "bsc" ? "BSC (BEP20)" : "Polygon (MATIC)"}
+                            Network: {tx.network === "ethereum" ? "Ethereum (ERC20)" : tx.network === "bsc" ? "BSC (BEP20)" : tx.network === "polygon" ? "Polygon (MATIC)" : tx.network === "base" ? "Base" : tx.network}
                           </p>
                         </div>
                       </div>
@@ -308,7 +308,7 @@ export default function AdminWithdrawals() {
                   <h3 className="font-semibold text-red-700 dark:text-red-400">Sweep All User Deposit Wallets</h3>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  This will iterate through ALL user deposit addresses and sweep any remaining on-chain balance to your cold wallet.
+                  This will iterate through ALL user deposit addresses and sweep any remaining on-chain balance across all networks (ETH, BSC, Polygon, Base) to your cold wallet.
                   Use this only in emergencies.
                 </p>
 
@@ -356,6 +356,7 @@ export default function AdminWithdrawals() {
                           <span className={`font-medium ${r.status === 'sent' ? 'text-green-600' : r.status === 'error' ? 'text-red-600' : 'text-muted-foreground'}`}>
                             {r.status}
                           </span>
+                          {r.chain && <span className="text-muted-foreground">[{r.chain}]</span>}
                           <span className="font-mono truncate">{r.address?.slice(0, 16)}...</span>
                           {r.txHash && <span className="font-mono text-green-600">{r.txHash.slice(0, 16)}...</span>}
                           {r.error && <span className="text-red-500">{r.error}</span>}

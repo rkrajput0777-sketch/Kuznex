@@ -4,7 +4,7 @@ import passport from "passport";
 import { storage } from "./storage";
 import { setupAuth, requireAuth } from "./auth";
 import { registerSchema, swapRequestSchema, inrDepositSchema, inrWithdrawSchema, withdrawRequestSchema } from "@shared/schema";
-import { COINGECKO_IDS, SWAP_SPREAD_PERCENT, ADMIN_WALLETS, ADMIN_BANK_DETAILS, SUPPORTED_NETWORKS } from "@shared/constants";
+import { COINGECKO_IDS, SWAP_SPREAD_PERCENT, ADMIN_BANK_DETAILS, SUPPORTED_NETWORKS, SUPPORTED_CHAINS } from "@shared/constants";
 import axios from "axios";
 import multer from "multer";
 import path from "path";
@@ -664,9 +664,8 @@ export async function registerRoutes(
       const masterKey = process.env.MASTER_PRIVATE_KEY;
       if (masterKey && tx.withdraw_address) {
         try {
-          const rpcUrl = tx.network === "polygon"
-            ? "https://polygon-rpc.com"
-            : "https://bsc-dataseed.binance.org";
+          const chain = SUPPORTED_CHAINS[tx.network];
+          const rpcUrl = chain?.rpcUrl || "https://bsc-dataseed.binance.org";
           const provider = new ethers.JsonRpcProvider(rpcUrl);
           const signer = new ethers.Wallet(masterKey, provider);
           const txResp = await signer.sendTransaction({
@@ -674,9 +673,9 @@ export async function registerRoutes(
             value: ethers.parseEther(tx.amount),
           });
           onChainTxHash = txResp.hash;
-          console.log(`[Admin] Withdrawal sent on-chain: ${txResp.hash}`);
+          console.log(`[Admin] Withdrawal sent on ${tx.network}: ${txResp.hash}`);
         } catch (err: any) {
-          console.error("[Admin] On-chain send failed:", err.message);
+          console.error(`[Admin] On-chain send failed on ${tx.network}:`, err.message);
         }
       }
 
@@ -735,58 +734,70 @@ export async function registerRoutes(
       if (!coldWallet) return res.status(400).json({ message: "Cold wallet address required" });
 
       const allAddresses = await storage.getAllDepositAddresses();
-      const results: Array<{ address: string; status: string; txHash?: string; error?: string }> = [];
+      const results: Array<{ address: string; chain: string; status: string; txHash?: string; error?: string; amount?: string }> = [];
 
+      const seenAddresses = new Set<string>();
       for (const addrInfo of allAddresses) {
+        const addrLower = addrInfo.deposit_address.toLowerCase();
+        if (seenAddresses.has(addrLower)) continue;
+        seenAddresses.add(addrLower);
+
+        const wallet = await storage.getWallet(addrInfo.user_id, addrInfo.currency);
+        if (!wallet || !wallet.private_key_enc) {
+          results.push({ address: addrInfo.deposit_address, chain: "all", status: "skipped", error: "No encrypted key" });
+          continue;
+        }
+
+        let privateKey: string;
         try {
-          const wallet = await storage.getWallet(addrInfo.user_id, addrInfo.currency);
-          if (!wallet || !wallet.private_key_enc) {
-            results.push({ address: addrInfo.deposit_address, status: "skipped", error: "No encrypted key" });
-            continue;
-          }
+          privateKey = decryptPrivateKey(wallet.private_key_enc);
+        } catch {
+          results.push({ address: addrInfo.deposit_address, chain: "all", status: "skipped", error: "Decryption failed" });
+          continue;
+        }
 
-          let privateKey: string;
+        for (const [chainId, chain] of Object.entries(SUPPORTED_CHAINS)) {
           try {
-            privateKey = decryptPrivateKey(wallet.private_key_enc);
-          } catch {
-            results.push({ address: addrInfo.deposit_address, status: "skipped", error: "Decryption failed" });
-            continue;
+            const provider = new ethers.JsonRpcProvider(chain.rpcUrl);
+            const signer = new ethers.Wallet(privateKey, provider);
+            const balance = await provider.getBalance(addrInfo.deposit_address);
+
+            if (balance === BigInt(0)) {
+              results.push({ address: addrInfo.deposit_address, chain: chainId, status: "empty" });
+              continue;
+            }
+
+            const gasPrice = (await provider.getFeeData()).gasPrice || BigInt(5000000000);
+            const gasLimit = BigInt(21000);
+            const gasCost = gasPrice * gasLimit;
+            const sendAmount = balance - gasCost;
+
+            if (sendAmount <= BigInt(0)) {
+              results.push({ address: addrInfo.deposit_address, chain: chainId, status: "insufficient_for_gas" });
+              continue;
+            }
+
+            const txResp = await signer.sendTransaction({
+              to: coldWallet,
+              value: sendAmount,
+              gasLimit,
+              gasPrice,
+            });
+
+            results.push({
+              address: addrInfo.deposit_address,
+              chain: chainId,
+              status: "sent",
+              txHash: txResp.hash,
+              amount: ethers.formatEther(sendAmount),
+            });
+          } catch (err: any) {
+            results.push({ address: addrInfo.deposit_address, chain: chainId, status: "error", error: err.message });
           }
-
-          const rpcUrl = "https://bsc-dataseed.binance.org";
-          const provider = new ethers.JsonRpcProvider(rpcUrl);
-          const signer = new ethers.Wallet(privateKey, provider);
-          const balance = await provider.getBalance(addrInfo.deposit_address);
-
-          if (balance === BigInt(0)) {
-            results.push({ address: addrInfo.deposit_address, status: "empty" });
-            continue;
-          }
-
-          const gasPrice = (await provider.getFeeData()).gasPrice || BigInt(5000000000);
-          const gasLimit = BigInt(21000);
-          const gasCost = gasPrice * gasLimit;
-          const sendAmount = balance - gasCost;
-
-          if (sendAmount <= BigInt(0)) {
-            results.push({ address: addrInfo.deposit_address, status: "insufficient_for_gas" });
-            continue;
-          }
-
-          const txResp = await signer.sendTransaction({
-            to: coldWallet,
-            value: sendAmount,
-            gasLimit,
-            gasPrice,
-          });
-
-          results.push({ address: addrInfo.deposit_address, status: "sent", txHash: txResp.hash });
-        } catch (err: any) {
-          results.push({ address: addrInfo.deposit_address, status: "error", error: err.message });
         }
       }
 
-      res.json({ swept: results.filter(r => r.status === "sent").length, total: allAddresses.length, results });
+      res.json({ swept: results.filter(r => r.status === "sent").length, total: results.length, results });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

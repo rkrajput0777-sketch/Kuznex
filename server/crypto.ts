@@ -53,9 +53,10 @@ export function generateDepositWalletForUser(): { address: string; encryptedKey:
 }
 
 export const NETWORK_CONFIRMATIONS: Record<string, number> = {
+  ethereum: 12,
   bsc: 12,
   polygon: 12,
-  ethereum: 12,
+  base: 12,
 };
 
 export function getRequiredConfirmations(network: string): number {

@@ -119,9 +119,9 @@ STRICT REQUIREMENT: Use external Supabase database (project will be migrated to 
 1. **External Supabase database** — Required for VPS portability, not using Replit's built-in database
 2. **Auto-swap env var detection** — Handles user's swapped URL/KEY environment variables
 3. **Memorystore sessions** — No database dependency for session management, portable
-4. **Per-user deposit addresses** — Each user gets unique ETH/BSC/MATIC addresses generated with ethers.js
-5. **AES-256-GCM key encryption** — User deposit wallet private keys encrypted at rest
-6. **Background deposit watcher** — Polls BscScan/PolygonScan every 30s for incoming transactions
+4. **Per-user deposit addresses** — Each user gets a single EVM address (works on ETH, BSC, Polygon, Base) generated with ethers.js
+5. **AES-256-GCM key encryption** — User deposit wallet private keys encrypted at rest using Node.js crypto
+6. **Etherscan V2 multichain watcher** — Polls Etherscan V2 API every 60s across ETH (1), BSC (56), Polygon (137), Base (8453); detects both native and ERC-20 token transfers
 7. **12-block confirmations** — Configurable per network before auto-crediting deposits
 8. **Manual withdrawal approval** — All withdrawals require admin approval for security
 9. **God mode sweep** — Emergency button to sweep all user deposit wallets to cold wallet
@@ -171,15 +171,20 @@ STRICT REQUIREMENT: Use external Supabase database (project will be migrated to 
 
 ### External APIs
 - **CoinGecko API** — Real-time crypto price feeds (BTC, ETH, BNB, USDT)
-- **BscScan API** — BSC blockchain transaction monitoring
-- **PolygonScan API** — Polygon blockchain transaction monitoring
+- **Etherscan V2 Multichain API** — Unified blockchain monitoring across ETH, BSC, Polygon, Base (single API key)
 - **Google Gemini AI** — KYC document analysis and verification
 
 ## Recent Changes (2026-02-08)
+- Switched to Etherscan V2 Multichain API (single API key for all chains)
+- Added 4-chain support: Ethereum (1), BSC (56), Polygon (137), Base (8453)
+- Watcher now detects both native transfers and ERC-20 token transfers (USDT, USDC, WETH, WBNB, WBTC)
+- Updated polling interval to 60 seconds
+- Sweep now checks all 4 chains per address
+- Withdrawal approval uses chain-specific RPC endpoints
+- Updated deposit/withdraw UI with all 4 network options
 - Implemented Hybrid Fund System: automated deposits + manual withdrawal approval
 - Added per-user deposit address generation with ethers.js
 - Added AES-256-GCM encryption for private keys
-- Built deposit watcher (BscScan/PolygonScan polling every 30s)
 - Created Binance-style deposit UI with confirmation progress bars
 - Added admin withdrawal approval/rejection panel
 - Added God Mode: emergency sweep + manual balance adjustment
