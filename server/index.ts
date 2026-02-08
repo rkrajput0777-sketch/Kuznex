@@ -6,6 +6,8 @@ import { startDepositWatcher } from "./watcher";
 
 function validateRequiredSecrets(): void {
   const required: Array<{ key: string; label: string }> = [
+    { key: "MASTER_PRIVATE_KEY", label: "MASTER_PRIVATE_KEY (Hot wallet private key for sending withdrawals)" },
+    { key: "ADMIN_COLD_WALLET", label: "ADMIN_COLD_WALLET (Cold wallet address for emergency sweeps)" },
     { key: "ENCRYPTION_KEY", label: "ENCRYPTION_KEY (AES-256 key for encrypting user wallet private keys)" },
     { key: "ETHERSCAN_API_KEY", label: "ETHERSCAN_API_KEY (Etherscan V2 Multichain API key)" },
     { key: "SESSION_SECRET", label: "SESSION_SECRET (Express session secret)" },
@@ -30,25 +32,25 @@ function validateRequiredSecrets(): void {
   }
 
   if (missing.length > 0) {
+    console.error("");
     console.error("=".repeat(70));
-    console.error("CRITICAL ERROR: Missing required environment secrets!");
+    console.error("CRITICAL: MISSING SECRETS! Please add Keys in Tools > Secrets.");
     console.error("=".repeat(70));
     for (const m of missing) {
       console.error(`  - ${m}`);
     }
     console.error("=".repeat(70));
     console.error("The server cannot start without these secrets.");
-    console.error("Please configure them in your environment and restart.");
     console.error("=".repeat(70));
+    console.error("");
     process.exit(1);
   }
 
-  if (!process.env.MASTER_PRIVATE_KEY) {
-    console.warn("[Security] WARNING: MASTER_PRIVATE_KEY not set. On-chain withdrawal sends will be disabled.");
-  }
-  if (!process.env.ADMIN_COLD_WALLET) {
-    console.warn("[Security] WARNING: ADMIN_COLD_WALLET not set. Sweep will require manual cold wallet address input.");
-  }
+  console.log("");
+  console.log("=".repeat(70));
+  console.log("System Secured. Starting Kuznex...");
+  console.log("=".repeat(70));
+  console.log("");
 }
 
 validateRequiredSecrets();

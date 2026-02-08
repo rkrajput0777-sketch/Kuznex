@@ -9,6 +9,14 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   ArrowLeftRight,
   Download,
   LogOut,
@@ -22,6 +30,8 @@ import {
   Wallet,
   ArrowUpRight,
   Settings,
+  Send,
+  FileText,
 } from "lucide-react";
 import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -51,6 +61,8 @@ export default function AdminWithdrawals() {
   const [adjustUserId, setAdjustUserId] = useState("");
   const [adjustCurrency, setAdjustCurrency] = useState("USDT");
   const [adjustAmount, setAdjustAmount] = useState("");
+  const [approveModalTx, setApproveModalTx] = useState<PendingWithdrawal | null>(null);
+  const [manualTxHash, setManualTxHash] = useState("");
 
   const { data: networkConfigs } = useQuery<NetworkConfig[]>({
     queryKey: ["/api/network-config"],
@@ -63,13 +75,15 @@ export default function AdminWithdrawals() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: async ({ txId, adminNote }: { txId: number; adminNote?: string }) => {
-      const res = await apiRequest("POST", `/api/admin/withdrawals/${txId}/approve`, { adminNote });
+    mutationFn: async ({ txId, adminNote, manualTxHash }: { txId: number; adminNote?: string; manualTxHash?: string }) => {
+      const res = await apiRequest("POST", `/api/admin/withdrawals/${txId}/approve`, { adminNote, manualTxHash });
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/withdrawals"] });
       toast({ title: "Withdrawal approved", description: "The withdrawal has been processed." });
+      setApproveModalTx(null);
+      setManualTxHash("");
     },
     onError: (err: any) => {
       toast({ title: "Approval failed", description: err.message, variant: "destructive" });
@@ -217,13 +231,17 @@ export default function AdminWithdrawals() {
                         />
                         <div className="flex gap-2">
                           <Button
-                            className="flex-1 bg-green-600 hover:bg-green-700"
-                            onClick={() => approveMutation.mutate({ txId: tx.id, adminNote: rejectNote[tx.id] })}
+                            className="flex-1"
+                            variant="default"
+                            onClick={() => {
+                              setApproveModalTx(tx);
+                              setManualTxHash("");
+                            }}
                             disabled={approveMutation.isPending}
                             data-testid={`button-approve-${tx.id}`}
                           >
                             <CheckCircle className="w-4 h-4 mr-2" />
-                            {approveMutation.isPending ? "Processing..." : "Approve & Send"}
+                            Approve
                           </Button>
                           <Button
                             variant="destructive"
@@ -384,6 +402,84 @@ export default function AdminWithdrawals() {
           </TabsContent>
         </Tabs>
       </main>
+
+      <Dialog open={!!approveModalTx} onOpenChange={(open) => { if (!open) { setApproveModalTx(null); setManualTxHash(""); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Approve Withdrawal</DialogTitle>
+            <DialogDescription>
+              {approveModalTx && (
+                <>
+                  {parseFloat(approveModalTx.amount).toFixed(6)} {approveModalTx.currency} to{" "}
+                  <span className="font-mono text-xs">{approveModalTx.withdraw_address?.slice(0, 10)}...{approveModalTx.withdraw_address?.slice(-8)}</span>
+                  {" "}on {networkConfigs?.find(n => n.id === approveModalTx.network)?.name || approveModalTx.network}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm text-muted-foreground mb-2 block">Transaction Hash (TxID)</Label>
+              <Input
+                placeholder="0x... (leave empty for auto-send)"
+                value={manualTxHash}
+                onChange={e => setManualTxHash(e.target.value)}
+                className="font-mono text-xs"
+                data-testid="input-manual-tx-hash"
+              />
+              <p className="text-xs text-muted-foreground mt-1.5">
+                Enter a hash if you already paid manually, or leave empty to auto-send via hot wallet.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-2">
+            {manualTxHash.trim() ? (
+              <Button
+                className="w-full sm:flex-1"
+                onClick={() => {
+                  if (approveModalTx) {
+                    approveMutation.mutate({
+                      txId: approveModalTx.id,
+                      adminNote: rejectNote[approveModalTx.id] || "Completed manually",
+                      manualTxHash: manualTxHash.trim(),
+                    });
+                  }
+                }}
+                disabled={approveMutation.isPending}
+                data-testid="button-complete-manual"
+              >
+                {approveMutation.isPending ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Processing...</>
+                ) : (
+                  <><FileText className="w-4 h-4 mr-2" />Complete Manual</>
+                )}
+              </Button>
+            ) : (
+              <Button
+                className="w-full sm:flex-1"
+                onClick={() => {
+                  if (approveModalTx) {
+                    approveMutation.mutate({
+                      txId: approveModalTx.id,
+                      adminNote: rejectNote[approveModalTx.id],
+                    });
+                  }
+                }}
+                disabled={approveMutation.isPending}
+                data-testid="button-auto-send"
+              >
+                {approveMutation.isPending ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending...</>
+                ) : (
+                  <><Send className="w-4 h-4 mr-2" />Auto-Send</>
+                )}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

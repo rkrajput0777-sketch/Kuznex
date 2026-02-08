@@ -680,32 +680,42 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Transaction is not a pending withdrawal" });
       }
 
+      const { adminNote, manualTxHash } = req.body;
       let onChainTxHash: string | null = null;
-      const masterKey = process.env.MASTER_PRIVATE_KEY;
-      if (masterKey && tx.withdraw_address) {
-        try {
-          const chain = SUPPORTED_CHAINS[tx.network];
-          if (!chain) throw new Error(`Unsupported network: ${tx.network}`);
-          const rpcUrl = chain.rpcUrl;
-          const provider = new ethers.JsonRpcProvider(rpcUrl);
-          const signer = new ethers.Wallet(masterKey, provider);
-          const networkFee = chain.withdrawalFee;
-          const sendAmount = Math.max(0, parseFloat(tx.amount) - networkFee);
-          if (sendAmount <= 0) throw new Error("Send amount after fee deduction is zero or negative");
-          const txResp = await signer.sendTransaction({
-            to: tx.withdraw_address,
-            value: ethers.parseEther(sendAmount.toFixed(18)),
-          });
-          onChainTxHash = txResp.hash;
-          console.log(`[Admin] Withdrawal sent on ${tx.network}: ${txResp.hash} (${sendAmount} after ${networkFee} fee)`);
-        } catch (err: any) {
-          console.error(`[Admin] On-chain send failed on ${tx.network}:`, err.message);
+
+      if (manualTxHash && typeof manualTxHash === "string" && manualTxHash.trim().length > 0) {
+        onChainTxHash = manualTxHash.trim();
+        console.log(`[Admin] Manual hash provided for withdrawal #${txId}: ${onChainTxHash}`);
+      } else {
+        const masterKey = process.env.MASTER_PRIVATE_KEY;
+        if (masterKey && tx.withdraw_address) {
+          try {
+            const chain = SUPPORTED_CHAINS[tx.network];
+            if (!chain) throw new Error(`Unsupported network: ${tx.network}`);
+            const rpcUrl = chain.rpcUrl;
+            const provider = new ethers.JsonRpcProvider(rpcUrl);
+            const signer = new ethers.Wallet(masterKey, provider);
+            const networkFee = chain.withdrawalFee;
+            const sendAmount = Math.max(0, parseFloat(tx.amount) - networkFee);
+            if (sendAmount <= 0) throw new Error("Send amount after fee deduction is zero or negative");
+            const txResp = await signer.sendTransaction({
+              to: tx.withdraw_address,
+              value: ethers.parseEther(sendAmount.toFixed(18)),
+            });
+            onChainTxHash = txResp.hash;
+            console.log(`[Admin] Withdrawal sent on ${tx.network}: ${txResp.hash} (${sendAmount} after ${networkFee} fee)`);
+          } catch (err: any) {
+            console.error(`[Admin] On-chain send failed on ${tx.network}:`, err.message);
+            return res.status(500).json({ message: `Auto-send failed: ${err.message}` });
+          }
+        } else {
+          return res.status(400).json({ message: "MASTER_PRIVATE_KEY not configured and no manual hash provided" });
         }
       }
 
-      const updatedTx = await storage.updateTransactionStatus(txId, "completed", req.body.adminNote || "Approved by admin");
+      const updatedTx = await storage.updateTransactionStatus(txId, "completed", adminNote || "Approved by admin");
       if (onChainTxHash) {
-        const { error } = await (await import("./supabase")).supabase
+        await (await import("./supabase")).supabase
           .from("transactions")
           .update({ tx_hash: onChainTxHash })
           .eq("id", txId);

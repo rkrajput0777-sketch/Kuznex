@@ -201,6 +201,12 @@ export default function Deposit() {
     return net?.name || n;
   };
 
+  const getExplorerTxUrl = (network: string, txHash: string) => {
+    const net = networks.find(x => x.id === network);
+    if (!net) return null;
+    return `${net.explorer}/tx/${txHash}`;
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <nav className="border-b border-border/50 bg-background/80 backdrop-blur-xl sticky top-0 z-[999]">
@@ -346,9 +352,24 @@ export default function Deposit() {
                         )}
 
                         {tx.tx_hash && (
-                          <div className="flex items-center gap-2 text-xs">
-                            <span className="text-muted-foreground">Tx:</span>
-                            <span className="font-mono text-muted-foreground truncate max-w-[200px]">{tx.tx_hash}</span>
+                          <div className="flex items-center justify-between gap-2 text-xs flex-wrap">
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">Tx:</span>
+                              <span className="font-mono text-muted-foreground truncate max-w-[200px]">{tx.tx_hash}</span>
+                            </div>
+                            {tx.status === "completed" && (
+                              <a
+                                href={getExplorerTxUrl(tx.network, tx.tx_hash) || "#"}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                data-testid={`link-view-deposit-tx-${tx.id}`}
+                              >
+                                <Button variant="outline" size="sm">
+                                  <ArrowUpRight className="w-3 h-3 mr-1" />
+                                  View Transaction
+                                </Button>
+                              </a>
+                            )}
                           </div>
                         )}
 
@@ -515,6 +536,26 @@ export default function Deposit() {
                           <div className="flex items-center gap-2 text-xs">
                             <span className="text-muted-foreground">To:</span>
                             <span className="font-mono text-muted-foreground truncate max-w-[200px]">{tx.withdraw_address}</span>
+                          </div>
+                        )}
+
+                        {tx.tx_hash && tx.status === "completed" && (
+                          <div className="flex items-center justify-between gap-2 text-xs flex-wrap">
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">Tx:</span>
+                              <span className="font-mono text-muted-foreground truncate max-w-[200px]">{tx.tx_hash}</span>
+                            </div>
+                            <a
+                              href={getExplorerTxUrl(tx.network, tx.tx_hash) || "#"}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              data-testid={`link-view-withdraw-tx-${tx.id}`}
+                            >
+                              <Button variant="outline" size="sm">
+                                <ArrowUpRight className="w-3 h-3 mr-1" />
+                                View Transaction
+                              </Button>
+                            </a>
                           </div>
                         )}
 
