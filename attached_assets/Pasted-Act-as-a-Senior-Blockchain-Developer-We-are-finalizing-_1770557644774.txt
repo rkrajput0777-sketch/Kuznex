@@ -1,0 +1,38 @@
+Act as a Senior Blockchain Developer. We are finalizing the "Kuznex Exchange" logic.
+
+### OBJECTIVE:
+Implement a Hybrid Fund System:
+1. Deposits: Fully Automated & Real-time (Binance Style UI/UX).
+2. Withdrawals: Manual Admin Approval (Strict Control).
+
+### 1. DATABASE SCHEMA (Supabase)
+- **Table wallets:** user_id, currency, balance, deposit_address, private_key_enc (Encrypted).
+- **Table transactions:** user_id, type (deposit/withdraw), amount, status (pending, confirming, completed, rejected), tx_hash, confirmations (int), created_at.
+
+### 2. BINANCE-STYLE DEPOSIT SYSTEM (Auto-DeAddress Generation:ation:** On signup, generate unique ETH/BSC/MATIC addresses for the user. Encrypt & store The "Watcher" (Background Job): Job):**
+  - Create a function that runs every 30 seconds (using setInterval or croAPI:**API:Tatum APIum ABscScan APIan API** to check for *incoming* transactions to all User Deposit AddressLogic:Logic:**
+    - If New Tx Found: Insert into DB as status: confirming, confirmations: 0.
+    - If Existing Tx: Update confirmations.
+    - If confirmations >= 12 (for BSC): Update status: completed AND Credit User BalFrontend (UX): (UX):**
+  - Show a "Recent Transactions" list.
+  - If status is confirming,Progress Barss Bar** (e.g., "Confirming 8/12 blocks").
+  - Auto-refresh this list every 10 seconds.
+
+### 3. ADMIN CONTROLLED WITHDRAWAL (Manual ApprUser Side: Side:**
+  - Form: Address + Amount.
+  - Logic: Check Balance -> Deduct Balance -> Create DB Record status: pending.
+  - Show message: "Withdrawal processing. Admin approval required."
+- **Admin Panel (/admin/withdrawals):**
+  - List all "Pending" reAction Buttons:n ButtoApprove:**Approve:** Decrypts the Hot Wallet Key (from Secrets) -> Sends Crypto via ethers.js -> Updates status to completed.
+    - **Reject:** Refunds balance to User -> Updates status to rejected.
+
+### 4. GOD MODE (Full Emergency Sweep Button: Sweep Button:**
+  - Create a secure Admin button: "Sweep All ULogic:.
+  - **Logic:** Iterate through ALL user deposit addresses -> Calculate Gas -> Send MAX available balance to ADMIN_COLD_WALLET (fManual Balance Adjust:alance Adjust:**
+  - Allow Admin to manually Add/Subtract User Balance in case of any issue.
+
+### 5. CONFIGURATION
+- Use TATUM_API_KEY for monitoring.
+- Use MASTER_PRIVATE_KEY for sending withdrawals.
+- Use ENCRYPTION_KEY for securing user keys.
+- Ensure the UI looks exactly like Binance (Clean, White Theme, Real-time badges).

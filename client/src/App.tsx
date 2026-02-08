@@ -12,6 +12,7 @@ import InrRamp from "@/pages/inr";
 import KycPage from "@/pages/kyc";
 import AdminKycReview from "@/pages/admin-kyc";
 import AdminUsers from "@/pages/admin-users";
+import AdminWithdrawals from "@/pages/admin-withdrawals";
 import NotFound from "@/pages/not-found";
 import RequireKYC from "@/components/require-kyc";
 
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/kyc" component={KycPage} />
       <Route path="/admin/kyc-review" component={AdminKycReview} />
       <Route path="/admin/users" component={AdminUsers} />
+      <Route path="/admin/withdrawals" component={AdminWithdrawals} />
       <Route path="/swap">
         <RequireKYC><Swap /></RequireKYC>
       </Route>

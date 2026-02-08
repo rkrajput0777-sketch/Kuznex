@@ -3,13 +3,15 @@ import { createServer, type Server } from "http";
 import passport from "passport";
 import { storage } from "./storage";
 import { setupAuth, requireAuth } from "./auth";
-import { registerSchema, swapRequestSchema, inrDepositSchema, inrWithdrawSchema } from "@shared/schema";
+import { registerSchema, swapRequestSchema, inrDepositSchema, inrWithdrawSchema, withdrawRequestSchema } from "@shared/schema";
 import { COINGECKO_IDS, SWAP_SPREAD_PERCENT, ADMIN_WALLETS, ADMIN_BANK_DETAILS, SUPPORTED_NETWORKS } from "@shared/constants";
 import axios from "axios";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getRequiredConfirmations, decryptPrivateKey } from "./crypto";
+import { ethers } from "ethers";
 
 const kycUpload = multer({
   storage: multer.diskStorage({
@@ -300,11 +302,86 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/deposit/address", requireAuth, (_req, res) => {
-    res.json({
-      wallets: ADMIN_WALLETS,
-      networks: SUPPORTED_NETWORKS,
-    });
+  app.get("/api/deposit/address", requireAuth, async (req, res) => {
+    try {
+      const userId = getEffectiveUserId(req);
+      const wallets = await storage.getWallets(userId);
+      const addresses: Record<string, string> = {};
+      for (const w of wallets) {
+        if (w.deposit_address) {
+          addresses[w.currency] = w.deposit_address;
+        }
+      }
+      res.json({
+        addresses,
+        networks: SUPPORTED_NETWORKS,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/deposit/transactions", requireAuth, async (req, res) => {
+    try {
+      const userId = getEffectiveUserId(req);
+      const transactions = await storage.getTransactionsByUser(userId, "deposit");
+      res.json(transactions);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/withdraw/transactions", requireAuth, async (req, res) => {
+    try {
+      const userId = getEffectiveUserId(req);
+      const transactions = await storage.getTransactionsByUser(userId, "withdraw");
+      res.json(transactions);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/withdraw", requireKycVerifiedOrAdmin, async (req, res) => {
+    try {
+      const parsed = withdrawRequestSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+
+      const { currency, amount, network, withdrawAddress } = parsed.data;
+      const userId = getEffectiveUserId(req);
+      const numAmount = parseFloat(amount);
+
+      if (isNaN(numAmount) || numAmount <= 0) {
+        return res.status(400).json({ message: "Invalid amount" });
+      }
+
+      const wallet = await storage.getWallet(userId, currency);
+      if (!wallet || parseFloat(wallet.balance) < numAmount) {
+        return res.status(400).json({ message: "Insufficient balance" });
+      }
+
+      const newBalance = (parseFloat(wallet.balance) - numAmount).toFixed(8);
+      await storage.updateWalletBalance(userId, currency, newBalance);
+
+      const tx = await storage.createTransaction({
+        user_id: userId,
+        type: "withdraw",
+        currency,
+        amount: numAmount.toFixed(8),
+        network,
+        status: "pending",
+        tx_hash: null,
+        confirmations: 0,
+        required_confirmations: 0,
+        from_address: null,
+        to_address: null,
+        withdraw_address: withdrawAddress,
+        admin_note: null,
+      });
+
+      res.json(tx);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Withdrawal request failed" });
+    }
   });
 
   app.post("/api/deposit/crypto", requireKycVerifiedOrAdmin, async (req, res) => {
@@ -563,6 +640,156 @@ export async function registerRoutes(
   app.post("/api/admin/stop-impersonation", requireAuth, async (req, res) => {
     delete (req.session as any).impersonatingUserId;
     res.json({ message: "Stopped impersonation" });
+  });
+
+  app.get("/api/admin/withdrawals", requireAdmin, async (req, res) => {
+    try {
+      const pending = await storage.getPendingWithdrawals();
+      res.json(pending);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/withdrawals/:txId/approve", requireAdmin, async (req, res) => {
+    try {
+      const txId = parseInt(req.params.txId as string);
+      const tx = await storage.getTransaction(txId);
+      if (!tx) return res.status(404).json({ message: "Transaction not found" });
+      if (tx.type !== "withdraw" || tx.status !== "pending") {
+        return res.status(400).json({ message: "Transaction is not a pending withdrawal" });
+      }
+
+      let onChainTxHash: string | null = null;
+      const masterKey = process.env.MASTER_PRIVATE_KEY;
+      if (masterKey && tx.withdraw_address) {
+        try {
+          const rpcUrl = tx.network === "polygon"
+            ? "https://polygon-rpc.com"
+            : "https://bsc-dataseed.binance.org";
+          const provider = new ethers.JsonRpcProvider(rpcUrl);
+          const signer = new ethers.Wallet(masterKey, provider);
+          const txResp = await signer.sendTransaction({
+            to: tx.withdraw_address,
+            value: ethers.parseEther(tx.amount),
+          });
+          onChainTxHash = txResp.hash;
+          console.log(`[Admin] Withdrawal sent on-chain: ${txResp.hash}`);
+        } catch (err: any) {
+          console.error("[Admin] On-chain send failed:", err.message);
+        }
+      }
+
+      const updatedTx = await storage.updateTransactionStatus(txId, "completed", req.body.adminNote || "Approved by admin");
+      if (onChainTxHash) {
+        const { error } = await (await import("./supabase")).supabase
+          .from("transactions")
+          .update({ tx_hash: onChainTxHash })
+          .eq("id", txId);
+      }
+
+      res.json({ ...updatedTx, tx_hash: onChainTxHash || updatedTx.tx_hash });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/withdrawals/:txId/reject", requireAdmin, async (req, res) => {
+    try {
+      const txId = parseInt(req.params.txId as string);
+      const tx = await storage.getTransaction(txId);
+      if (!tx) return res.status(404).json({ message: "Transaction not found" });
+      if (tx.type !== "withdraw" || tx.status !== "pending") {
+        return res.status(400).json({ message: "Transaction is not a pending withdrawal" });
+      }
+
+      await storage.adjustUserBalance(tx.user_id, tx.currency, parseFloat(tx.amount));
+
+      const updatedTx = await storage.updateTransactionStatus(txId, "rejected", req.body.adminNote || "Rejected by admin");
+      res.json(updatedTx);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/balance-adjust", requireAdmin, async (req, res) => {
+    try {
+      const { userId, currency, amount } = req.body;
+      if (!userId || !currency || amount === undefined) {
+        return res.status(400).json({ message: "userId, currency, and amount are required" });
+      }
+      const numAmount = parseFloat(amount);
+      if (isNaN(numAmount)) return res.status(400).json({ message: "Invalid amount" });
+
+      await storage.adjustUserBalance(userId, currency, numAmount);
+      const wallet = await storage.getWallet(userId, currency);
+      res.json({ userId, currency, newBalance: wallet?.balance, adjusted: numAmount });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/sweep", requireAdmin, async (req, res) => {
+    try {
+      const coldWallet = req.body.coldWalletAddress;
+      if (!coldWallet) return res.status(400).json({ message: "Cold wallet address required" });
+
+      const allAddresses = await storage.getAllDepositAddresses();
+      const results: Array<{ address: string; status: string; txHash?: string; error?: string }> = [];
+
+      for (const addrInfo of allAddresses) {
+        try {
+          const wallet = await storage.getWallet(addrInfo.user_id, addrInfo.currency);
+          if (!wallet || !wallet.private_key_enc) {
+            results.push({ address: addrInfo.deposit_address, status: "skipped", error: "No encrypted key" });
+            continue;
+          }
+
+          let privateKey: string;
+          try {
+            privateKey = decryptPrivateKey(wallet.private_key_enc);
+          } catch {
+            results.push({ address: addrInfo.deposit_address, status: "skipped", error: "Decryption failed" });
+            continue;
+          }
+
+          const rpcUrl = "https://bsc-dataseed.binance.org";
+          const provider = new ethers.JsonRpcProvider(rpcUrl);
+          const signer = new ethers.Wallet(privateKey, provider);
+          const balance = await provider.getBalance(addrInfo.deposit_address);
+
+          if (balance === BigInt(0)) {
+            results.push({ address: addrInfo.deposit_address, status: "empty" });
+            continue;
+          }
+
+          const gasPrice = (await provider.getFeeData()).gasPrice || BigInt(5000000000);
+          const gasLimit = BigInt(21000);
+          const gasCost = gasPrice * gasLimit;
+          const sendAmount = balance - gasCost;
+
+          if (sendAmount <= BigInt(0)) {
+            results.push({ address: addrInfo.deposit_address, status: "insufficient_for_gas" });
+            continue;
+          }
+
+          const txResp = await signer.sendTransaction({
+            to: coldWallet,
+            value: sendAmount,
+            gasLimit,
+            gasPrice,
+          });
+
+          results.push({ address: addrInfo.deposit_address, status: "sent", txHash: txResp.hash });
+        } catch (err: any) {
+          results.push({ address: addrInfo.deposit_address, status: "error", error: err.message });
+        }
+      }
+
+      res.json({ swept: results.filter(r => r.status === "sent").length, total: allAddresses.length, results });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
   });
 
   return httpServer;

@@ -18,6 +18,8 @@ export interface UserWallet {
   user_id: number;
   currency: string;
   balance: string;
+  deposit_address: string | null;
+  private_key_enc: string | null;
 }
 
 export interface SwapHistory {
@@ -57,6 +59,25 @@ export interface InrTransaction {
   created_at: string;
 }
 
+export interface Transaction {
+  id: number;
+  user_id: number;
+  type: string;
+  currency: string;
+  amount: string;
+  network: string;
+  status: string;
+  tx_hash: string | null;
+  confirmations: number;
+  required_confirmations: number;
+  from_address: string | null;
+  to_address: string | null;
+  withdraw_address: string | null;
+  admin_note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type InsertUser = {
   username: string;
   email: string;
@@ -90,4 +111,11 @@ export const inrWithdrawSchema = z.object({
   bankName: z.string().min(1, "Bank name is required"),
   accountNumber: z.string().min(1, "Account number is required"),
   ifscCode: z.string().min(1, "IFSC code is required"),
+});
+
+export const withdrawRequestSchema = z.object({
+  currency: z.string().min(1),
+  amount: z.string().min(1),
+  network: z.string().min(1),
+  withdrawAddress: z.string().min(1, "Withdrawal address is required"),
 });
