@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import passport from "passport";
 import { storage } from "./storage";
 import { setupAuth, requireAuth } from "./auth";
-import { registerSchema, swapRequestSchema, inrDepositSchema, inrWithdrawSchema, withdrawRequestSchema, spotOrderSchema } from "@shared/schema";
+import { registerSchema, swapRequestSchema, inrDepositSchema, inrWithdrawSchema, withdrawRequestSchema, spotOrderSchema, contactMessageSchema } from "@shared/schema";
 import { COINGECKO_IDS, SWAP_SPREAD_PERCENT, ADMIN_BANK_DETAILS, SUPPORTED_NETWORKS, SUPPORTED_CHAINS, SPOT_TRADING_FEE, TRADABLE_PAIRS, VIEWABLE_PAIRS, TDS_RATE, EXCHANGE_FEE_RATE, SUPER_ADMIN_EMAIL, type ChainConfig } from "@shared/constants";
 import axios from "axios";
 import multer from "multer";
@@ -1248,6 +1248,50 @@ export async function registerRoutes(
     if (typeof imps === "boolean") platformSettings.paymentMethods.imps = imps;
     if (typeof bankTransfer === "boolean") platformSettings.paymentMethods.bankTransfer = bankTransfer;
     res.json({ message: "Payment method settings updated", paymentMethods: platformSettings.paymentMethods });
+  });
+
+  app.post("/api/contact", async (req, res) => {
+    try {
+      const parsed = contactMessageSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+      const userId = req.isAuthenticated() ? req.user!.id : null;
+      const msg = await storage.createContactMessage({
+        user_id: userId,
+        name: parsed.data.name,
+        email: parsed.data.email,
+        subject: parsed.data.subject,
+        message: parsed.data.message,
+        status: "new",
+      });
+      res.json({ message: "Message sent successfully", id: msg.id });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/messages", requireAdmin, async (_req, res) => {
+    try {
+      const messages = await storage.getContactMessages();
+      res.json(messages);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/messages/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status } = req.body;
+      if (!["new", "replied", "archived"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+      const msg = await storage.updateContactMessageStatus(id, status);
+      res.json(msg);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
   });
 
   return httpServer;

@@ -10,6 +10,7 @@ import type {
   SpotOrder,
   InsertSpotOrder,
   DailySnapshot,
+  ContactMessage,
 } from "@shared/schema";
 import { SUPPORTED_CURRENCIES } from "@shared/constants";
 import bcrypt from "bcrypt";
@@ -55,6 +56,9 @@ export interface IStorage {
   getAllUserIds(): Promise<number[]>;
   getTdsSwapRecords(startDate: string, endDate: string): Promise<any[]>;
   getTdsInrWithdrawRecords(startDate: string, endDate: string): Promise<any[]>;
+  createContactMessage(data: Omit<ContactMessage, "id" | "created_at">): Promise<ContactMessage>;
+  getContactMessages(): Promise<ContactMessage[]>;
+  updateContactMessageStatus(id: number, status: string): Promise<ContactMessage>;
 }
 
 export class SupabaseStorage implements IStorage {
@@ -562,6 +566,35 @@ export class SupabaseStorage implements IStorage {
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data || [];
+  }
+  async createContactMessage(data: Omit<ContactMessage, "id" | "created_at">): Promise<ContactMessage> {
+    const { data: msg, error } = await supabase
+      .from("contact_messages")
+      .insert(data)
+      .select()
+      .single();
+    if (error || !msg) throw new Error(error?.message || "Failed to create contact message");
+    return msg as ContactMessage;
+  }
+
+  async getContactMessages(): Promise<ContactMessage[]> {
+    const { data, error } = await supabase
+      .from("contact_messages")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data || []) as ContactMessage[];
+  }
+
+  async updateContactMessageStatus(id: number, status: string): Promise<ContactMessage> {
+    const { data, error } = await supabase
+      .from("contact_messages")
+      .update({ status })
+      .eq("id", id)
+      .select()
+      .single();
+    if (error || !data) throw new Error(error?.message || "Failed to update message status");
+    return data as ContactMessage;
   }
 }
 
