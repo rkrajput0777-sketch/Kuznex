@@ -218,32 +218,42 @@ export default function Swap() {
               </p>
             )}
 
-            {toCurrency === "INR" && estimatedOutput && parseFloat(estimatedOutput) > 0 && (
-              <div className="space-y-3" data-testid="tds-breakdown">
-                <div className="p-4 rounded-lg bg-muted/50 border border-border space-y-2">
-                  <p className="text-sm font-medium text-foreground mb-2">Transaction Breakdown</p>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Gross Amount</span>
-                    <span className="text-foreground font-medium" data-testid="text-tds-gross">{parseFloat(estimatedOutput).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
+            {toCurrency === "INR" && estimatedOutput && parseFloat(estimatedOutput) > 0 && (() => {
+              const gross = parseFloat(estimatedOutput);
+              const tds = gross * 0.01;
+              const fee = gross * 0.002;
+              const net = gross - tds - fee;
+              return (
+                <div className="space-y-3" data-testid="tds-breakdown">
+                  <div className="p-4 rounded-lg bg-muted/50 border border-border space-y-2">
+                    <p className="text-sm font-medium text-foreground mb-2">Transaction Breakdown</p>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Gross Amount</span>
+                      <span className="text-foreground font-medium" data-testid="text-tds-gross">{gross.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">TDS (1% Govt Tax)</span>
+                      <span className="text-red-600 dark:text-red-400 font-medium" data-testid="text-tds-amount">- {tds.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Platform Fee (0.2%)</span>
+                      <span className="text-red-600 dark:text-red-400 font-medium" data-testid="text-exchange-fee">- {fee.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="border-t border-border pt-2 flex items-center justify-between text-sm">
+                      <span className="font-semibold text-foreground">You Receive</span>
+                      <span className="font-bold text-green-600 dark:text-green-400" data-testid="text-tds-net">{net.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">TDS (1% Govt Tax)</span>
-                    <span className="text-red-600 dark:text-red-400 font-medium" data-testid="text-tds-amount">- {(parseFloat(estimatedOutput) * 0.01).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="border-t border-border pt-2 flex items-center justify-between text-sm">
-                    <span className="font-semibold text-foreground">You Receive</span>
-                    <span className="font-bold text-green-600 dark:text-green-400" data-testid="text-tds-net">{(parseFloat(estimatedOutput) * 0.99).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
-                  </div>
-                </div>
 
-                <div className="p-3 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 flex gap-2">
-                  <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-                  <p className="text-xs text-muted-foreground">
-                    <span className="font-semibold text-foreground">Tax Note:</span> 1% TDS is deducted as per Govt of India VDA guidelines (Section 194S). This amount is deposited against your PAN Card by Kuznex. You can <span className="font-semibold text-foreground">claim this refund</span> while filing your Income Tax Return (ITR).
-                  </p>
+                  <div className="p-3 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 flex gap-2">
+                    <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+                    <p className="text-xs text-muted-foreground">
+                      <span className="font-semibold text-foreground">Tax Note:</span> 1% TDS is deducted as per Govt of India VDA guidelines (Section 194S). This amount is claimable against your PAN Card by Kuznex. You can <span className="font-semibold text-foreground">claim this refund</span> while filing your Income Tax Return (ITR).
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             <Button
               className="w-full"

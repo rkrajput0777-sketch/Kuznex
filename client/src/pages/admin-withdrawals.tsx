@@ -36,9 +36,16 @@ import {
 import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Switch } from "@/components/ui/switch";
 import type { Transaction } from "@shared/schema";
 
 type PendingWithdrawal = Transaction & { username?: string; email?: string };
+
+interface PaymentMethods {
+  upi: boolean;
+  imps: boolean;
+  bankTransfer: boolean;
+}
 
 interface NetworkConfig {
   id: string;
@@ -66,6 +73,26 @@ export default function AdminWithdrawals() {
 
   const { data: networkConfigs } = useQuery<NetworkConfig[]>({
     queryKey: ["/api/network-config"],
+  });
+
+  const { data: paymentMethods } = useQuery<PaymentMethods>({
+    queryKey: ["/api/admin/platform-settings"],
+    enabled: !!user?.isSuperAdmin,
+    select: (data: any) => data.paymentMethods,
+  });
+
+  const paymentMethodMutation = useMutation({
+    mutationFn: async (data: Partial<PaymentMethods>) => {
+      const res = await apiRequest("POST", "/api/admin/platform-settings/payment-methods", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/platform-settings"] });
+      toast({ title: "Payment settings updated" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Update failed", description: err.message, variant: "destructive" });
+    },
   });
 
   const { data: pendingWithdrawals, isLoading: loadingWithdrawals } = useQuery<PendingWithdrawal[]>({
@@ -169,9 +196,10 @@ export default function AdminWithdrawals() {
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         <Tabs defaultValue="withdrawals" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="withdrawals" data-testid="tab-withdrawals"><ArrowUpRight className="w-4 h-4 mr-2" />Withdrawals</TabsTrigger>
-            <TabsTrigger value="balance" data-testid="tab-balance"><Wallet className="w-4 h-4 mr-2" />Balance Adjust</TabsTrigger>
+            <TabsTrigger value="balance" data-testid="tab-balance"><Wallet className="w-4 h-4 mr-2" />Balance</TabsTrigger>
+            <TabsTrigger value="settings" data-testid="tab-settings"><Settings className="w-4 h-4 mr-2" />Settings</TabsTrigger>
             <TabsTrigger value="godmode" data-testid="tab-godmode"><AlertTriangle className="w-4 h-4 mr-2" />God Mode</TabsTrigger>
           </TabsList>
 
@@ -322,6 +350,57 @@ export default function AdminWithdrawals() {
                     </>
                   )}
                 </Button>
+              </div>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="settings" className="space-y-4">
+            <h2 className="text-xl font-bold">Platform Settings</h2>
+            <Card className="p-6">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Settings className="w-5 h-5 text-primary" />
+                INR Payment Methods
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Enable or disable payment methods for INR deposits and withdrawals.
+              </p>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm font-medium">UPI</Label>
+                    <p className="text-xs text-muted-foreground">Unified Payments Interface</p>
+                  </div>
+                  <Switch
+                    checked={paymentMethods?.upi ?? true}
+                    onCheckedChange={(checked) => paymentMethodMutation.mutate({ upi: checked })}
+                    disabled={paymentMethodMutation.isPending}
+                    data-testid="switch-upi"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm font-medium">IMPS</Label>
+                    <p className="text-xs text-muted-foreground">Immediate Payment Service</p>
+                  </div>
+                  <Switch
+                    checked={paymentMethods?.imps ?? true}
+                    onCheckedChange={(checked) => paymentMethodMutation.mutate({ imps: checked })}
+                    disabled={paymentMethodMutation.isPending}
+                    data-testid="switch-imps"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm font-medium">Bank Transfer</Label>
+                    <p className="text-xs text-muted-foreground">NEFT / RTGS</p>
+                  </div>
+                  <Switch
+                    checked={paymentMethods?.bankTransfer ?? true}
+                    onCheckedChange={(checked) => paymentMethodMutation.mutate({ bankTransfer: checked })}
+                    disabled={paymentMethodMutation.isPending}
+                    data-testid="switch-bank-transfer"
+                  />
+                </div>
               </div>
             </Card>
           </TabsContent>

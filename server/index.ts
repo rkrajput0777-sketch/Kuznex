@@ -4,6 +4,8 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { startDepositWatcher } from "./watcher";
 import { startSnapshotCron } from "./snapshot-cron";
+import { storage } from "./storage";
+import { SUPER_ADMIN_EMAIL } from "@shared/constants";
 
 function validateRequiredSecrets(): void {
   const required: Array<{ key: string; label: string }> = [
@@ -55,6 +57,26 @@ function validateRequiredSecrets(): void {
 }
 
 validateRequiredSecrets();
+
+async function seedTestData() {
+  try {
+    const adminUser = await storage.getUserByEmail(SUPER_ADMIN_EMAIL);
+    if (!adminUser) {
+      console.log(`[Seed] Admin user ${SUPER_ADMIN_EMAIL} not found. Skipping test data injection.`);
+      return;
+    }
+
+    const usdtWallet = await storage.getWallet(adminUser.id, "USDT");
+    if (usdtWallet) {
+      await storage.updateWalletBalance(adminUser.id, "USDT", "75.00000000");
+      console.log(`[Seed] Admin USDT balance set to 75.00 USDT for testing.`);
+    } else {
+      console.log(`[Seed] Admin USDT wallet not found. Skipping.`);
+    }
+  } catch (err: any) {
+    console.error(`[Seed] Test data injection failed:`, err.message);
+  }
+}
 
 const app = express();
 const httpServer = createServer(app);
@@ -146,6 +168,7 @@ app.use((req, res, next) => {
       log(`serving on port ${port}`);
       startDepositWatcher(60000);
       startSnapshotCron();
+      seedTestData();
     },
   );
 })();

@@ -48,6 +48,11 @@ export default function InrRamp() {
     enabled: !!user,
   });
 
+  const { data: paymentMethods } = useQuery<{ upi: boolean; imps: boolean; bankTransfer: boolean }>({
+    queryKey: ["/api/platform/payment-methods"],
+    enabled: !!user,
+  });
+
   const { data: wallets } = useQuery<UserWallet[]>({
     queryKey: ["/api/wallet"],
     enabled: !!user,
@@ -156,12 +161,29 @@ export default function InrRamp() {
                   <h3 className="font-semibold text-foreground text-sm">Admin Bank Details</h3>
                 </div>
                 <div className="space-y-1 text-sm">
-                  <p className="text-muted-foreground">Bank: <span className="text-foreground">{bankDetails?.bankName || "Loading..."}</span></p>
-                  <p className="text-muted-foreground">A/C: <span className="text-foreground">{bankDetails?.accountNumber || "Loading..."}</span></p>
-                  <p className="text-muted-foreground">IFSC: <span className="text-foreground">{bankDetails?.ifscCode || "Loading..."}</span></p>
-                  <p className="text-muted-foreground">Name: <span className="text-foreground">{bankDetails?.accountHolder || "Loading..."}</span></p>
-                  <p className="text-muted-foreground">UPI: <span className="text-foreground">{bankDetails?.upiId || "Loading..."}</span></p>
+                  {paymentMethods?.bankTransfer && (
+                    <>
+                      <p className="text-muted-foreground">Bank: <span className="text-foreground">{bankDetails?.bankName || "Loading..."}</span></p>
+                      <p className="text-muted-foreground">A/C: <span className="text-foreground">{bankDetails?.accountNumber || "Loading..."}</span></p>
+                      <p className="text-muted-foreground">IFSC: <span className="text-foreground">{bankDetails?.ifscCode || "Loading..."}</span></p>
+                      <p className="text-muted-foreground">Name: <span className="text-foreground">{bankDetails?.accountHolder || "Loading..."}</span></p>
+                    </>
+                  )}
+                  {paymentMethods?.upi && (
+                    <p className="text-muted-foreground">UPI: <span className="text-foreground">{bankDetails?.upiId || "Loading..."}</span></p>
+                  )}
                 </div>
+                {paymentMethods && (
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    <span className="text-xs text-muted-foreground">Available:</span>
+                    {paymentMethods.upi && <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20">UPI</span>}
+                    {paymentMethods.imps && <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20">IMPS</span>}
+                    {paymentMethods.bankTransfer && <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20">Bank Transfer</span>}
+                    {!paymentMethods.upi && !paymentMethods.imps && !paymentMethods.bankTransfer && (
+                      <span className="text-xs text-red-600 dark:text-red-400">All payment methods currently disabled</span>
+                    )}
+                  </div>
+                )}
               </div>
 
               <Form {...depositForm}>
@@ -265,32 +287,42 @@ export default function InrRamp() {
                       </FormItem>
                     )}
                   />
-                  {withdrawForm.watch("amount") && parseFloat(withdrawForm.watch("amount")) > 0 && (
-                    <div className="space-y-3" data-testid="tds-withdraw-breakdown">
-                      <div className="p-4 rounded-lg bg-muted/50 border border-border space-y-2">
-                        <p className="text-sm font-medium text-foreground mb-2">Withdrawal Breakdown</p>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Withdrawal Amount</span>
-                          <span className="text-foreground font-medium" data-testid="text-withdraw-gross">{parseFloat(withdrawForm.watch("amount")).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
+                  {withdrawForm.watch("amount") && parseFloat(withdrawForm.watch("amount")) > 0 && (() => {
+                    const amt = parseFloat(withdrawForm.watch("amount"));
+                    const tds = amt * 0.01;
+                    const fee = amt * 0.002;
+                    const net = amt - tds - fee;
+                    return (
+                      <div className="space-y-3" data-testid="tds-withdraw-breakdown">
+                        <div className="p-4 rounded-lg bg-muted/50 border border-border space-y-2">
+                          <p className="text-sm font-medium text-foreground mb-2">Withdrawal Breakdown</p>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Withdrawal Amount</span>
+                            <span className="text-foreground font-medium" data-testid="text-withdraw-gross">{amt.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">TDS (1% Govt Tax)</span>
+                            <span className="text-red-600 dark:text-red-400 font-medium" data-testid="text-withdraw-tds">- {tds.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Platform Fee (0.2%)</span>
+                            <span className="text-red-600 dark:text-red-400 font-medium" data-testid="text-withdraw-fee">- {fee.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="border-t border-border pt-2 flex items-center justify-between text-sm">
+                            <span className="font-semibold text-foreground">You Receive</span>
+                            <span className="font-bold text-green-600 dark:text-green-400" data-testid="text-withdraw-net">{net.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
+                          </div>
                         </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">TDS (1% Govt Tax)</span>
-                          <span className="text-red-600 dark:text-red-400 font-medium" data-testid="text-withdraw-tds">- {(parseFloat(withdrawForm.watch("amount")) * 0.01).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
-                        </div>
-                        <div className="border-t border-border pt-2 flex items-center justify-between text-sm">
-                          <span className="font-semibold text-foreground">You Receive</span>
-                          <span className="font-bold text-green-600 dark:text-green-400" data-testid="text-withdraw-net">{(parseFloat(withdrawForm.watch("amount")) * 0.99).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
-                        </div>
-                      </div>
 
-                      <div className="p-3 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 flex gap-2">
-                        <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-                        <p className="text-xs text-muted-foreground">
-                          <span className="font-semibold text-foreground">Tax Note:</span> 1% TDS is deducted as per Govt of India VDA guidelines (Section 194S). This amount is deposited against your PAN Card by Kuznex. You can <span className="font-semibold text-foreground">claim this refund</span> while filing your Income Tax Return (ITR).
-                        </p>
+                        <div className="p-3 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 flex gap-2">
+                          <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+                          <p className="text-xs text-muted-foreground">
+                            <span className="font-semibold text-foreground">Tax Note:</span> 1% TDS is deducted as per Govt of India VDA guidelines (Section 194S). This amount is claimable against your PAN Card by Kuznex. You can <span className="font-semibold text-foreground">claim this refund</span> while filing your Income Tax Return (ITR).
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   <Button type="submit" className="w-full" disabled={withdrawMutation.isPending} data-testid="button-submit-inr-withdraw">
                     {withdrawMutation.isPending ? "Submitting..." : "Submit Withdrawal"}

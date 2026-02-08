@@ -1,0 +1,43 @@
+Act as a Lead Blockchain Architect & Full-Stack Developer. We are entering the FINAL INTEGRATION PHASE for "Kuznex Exchange".
+
+### OBJECTIVE:
+Consolidate ALL previously discussed features into a production-ready build and initialize a "Test Mode" for the Admin.
+
+### 1. SECURITY & ACCESS CONTROL (Priority #1)
+- Strict Admin Route: The /admin path and all sub-routes must be accessible ONLY to the user email: rkrajput0777@gmail.com.
+- Stealth Mode: For any other user (or guest) trying to access /admin, show a Custom 404 (Page Not Found). Do not redirect; pretend the page doesn't exist.
+- Startup Check: On server start, strictly validate that MASTER_PRIVATE_KEY, ADMIN_COLD_WALLET, ETHERSCAN_API_KEY, and ENCRYPTION_KEY are present in Secrets.
+
+### 2. HYBRID FUND SYSTEM (Multichain)
+- Deposits: Ensure Etherscan V2 API logic is active for ETH, BSC, Polygon, and Base.
+- Withdrawals:
+  - User requests -> Status "Pending".
+  - Admin Action: In /admin/withdrawals, provide two options:
+    1. "Auto Send": Uses Hot Wallet to send funds.
+    2. "Manual Complete": Admin enters a TX Hash manually (if sent from phone).
+
+### 3. FIAT (INR) RAMP & COMPLIANCE
+- P2P/Bank System: Enable Deposit/Withdraw INR features.
+- Admin Toggles: Ensure I can enable/disable UPI, IMPS, or Bank Transfer from the Admin Panel.
+- TDS Logic: On "Sell Crypto" (INR Withdrawal), deduct 1% TDS + 0.2% Fee automatically. Show the "Claimable against PAN" disclaimer.
+
+### 4. SPOT TRADING ENGINE
+- Interface: Binance-style UI (TradingView Chart + Order Book).
+- Logic: Instant execution (Brokerage Model).
+- Fees: Deduct 0.1% fee on every trade.
+
+### 5. UI/UX & ANALYTICS
+- Dashboard: Ensure the 3D Tilt Glass Card is working (showing Portfolio Balance & 24h PnL).
+- History: Show clear statuses (Pending/Completed) with clickable TX Hashes.
+
+### 6. * IMMEDIATE ACTION: TEST DATA INJECTION *
+To test the system immediately without real blockchain deposits:
+- Seed Script: On server startup, check if user rkrajput0777@gmail.com exists.
+- Action: If found, FORCE UPDATE their USDT Wallet Balance to 75.00 USDT.
+- Purpose: This allows me to immediately test:
+  - Spot Trading (Buy BTC with this 75 USDT).
+  - Withdrawal Request logic.
+  - Fiat Sell logic (TDS calculation).
+  - 3D Card Visuals.
+
+EXECUTE ALL INTEGRATIONS NOW.

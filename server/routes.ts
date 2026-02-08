@@ -4,7 +4,7 @@ import passport from "passport";
 import { storage } from "./storage";
 import { setupAuth, requireAuth } from "./auth";
 import { registerSchema, swapRequestSchema, inrDepositSchema, inrWithdrawSchema, withdrawRequestSchema, spotOrderSchema } from "@shared/schema";
-import { COINGECKO_IDS, SWAP_SPREAD_PERCENT, ADMIN_BANK_DETAILS, SUPPORTED_NETWORKS, SUPPORTED_CHAINS, SPOT_TRADING_FEE, TRADABLE_PAIRS, VIEWABLE_PAIRS, TDS_RATE, SUPER_ADMIN_EMAIL, type ChainConfig } from "@shared/constants";
+import { COINGECKO_IDS, SWAP_SPREAD_PERCENT, ADMIN_BANK_DETAILS, SUPPORTED_NETWORKS, SUPPORTED_CHAINS, SPOT_TRADING_FEE, TRADABLE_PAIRS, VIEWABLE_PAIRS, TDS_RATE, EXCHANGE_FEE_RATE, SUPER_ADMIN_EMAIL, type ChainConfig } from "@shared/constants";
 import axios from "axios";
 import multer from "multer";
 import path from "path";
@@ -20,6 +20,14 @@ function extractPanFromKyc(kycData: any): string | null {
     return null;
   }
 }
+
+const platformSettings = {
+  paymentMethods: {
+    upi: true,
+    imps: true,
+    bankTransfer: true,
+  },
+};
 
 const kycUpload = multer({
   storage: multer.diskStorage({
@@ -279,6 +287,7 @@ export async function registerRoutes(
       const toAmount = amount * effectiveRate;
 
       let tdsAmount = 0;
+      let exchangeFee = 0;
       let netPayout = toAmount;
 
       if (toCurrency === "INR") {
@@ -289,7 +298,8 @@ export async function registerRoutes(
           return res.status(403).json({ message: "PAN Card verification required for crypto-to-INR transactions as per Govt norms." });
         }
         tdsAmount = toAmount * TDS_RATE;
-        netPayout = toAmount - tdsAmount;
+        exchangeFee = toAmount * EXCHANGE_FEE_RATE;
+        netPayout = toAmount - tdsAmount - exchangeFee;
       }
 
       const newFromBalance = (parseFloat(fromWallet.balance) - amount).toFixed(8);
@@ -510,7 +520,8 @@ export async function registerRoutes(
       }
 
       const tdsAmount = amount * TDS_RATE;
-      const netPayout = amount - tdsAmount;
+      const exchangeFee = amount * EXCHANGE_FEE_RATE;
+      const netPayout = amount - tdsAmount - exchangeFee;
 
       const newBalance = (parseFloat(wallet.balance) - amount).toFixed(2);
       await storage.updateWalletBalance(userId, "INR", newBalance);
@@ -1221,6 +1232,22 @@ export async function registerRoutes(
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
+  });
+
+  app.get("/api/platform/payment-methods", (_req, res) => {
+    res.json(platformSettings.paymentMethods);
+  });
+
+  app.get("/api/admin/platform-settings", requireAdmin, (_req, res) => {
+    res.json(platformSettings);
+  });
+
+  app.post("/api/admin/platform-settings/payment-methods", requireAdmin, (req, res) => {
+    const { upi, imps, bankTransfer } = req.body;
+    if (typeof upi === "boolean") platformSettings.paymentMethods.upi = upi;
+    if (typeof imps === "boolean") platformSettings.paymentMethods.imps = imps;
+    if (typeof bankTransfer === "boolean") platformSettings.paymentMethods.bankTransfer = bankTransfer;
+    res.json({ message: "Payment method settings updated", paymentMethods: platformSettings.paymentMethods });
   });
 
   return httpServer;
