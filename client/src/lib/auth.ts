@@ -2,7 +2,17 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "./queryClient";
 
 export function useAuth() {
-  return useQuery<{ id: number; username: string; email: string; kycStatus: string; isAdmin: boolean }>({
+  return useQuery<{
+    id: number;
+    kuznexId: string | null;
+    username: string;
+    email: string;
+    kycStatus: string;
+    isAdmin: boolean;
+    impersonating?: boolean;
+    adminId?: number;
+    adminUsername?: string;
+  }>({
     queryKey: ["/api/auth/me"],
     retry: false,
   });

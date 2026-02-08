@@ -13,6 +13,7 @@ import {
   X
 } from "lucide-react";
 import { useState } from "react";
+import kuznexLogo from "@assets/image_1770554564085.png";
 
 function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -29,12 +30,7 @@ function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-4">
           <Link href="/" className="flex items-center gap-2" data-testid="link-home-logo">
-            <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">K</span>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-primary">
-              Kuznex
-            </span>
+            <img src={kuznexLogo} alt="Kuznex" className="h-8 w-auto" />
           </Link>
 
           <div className="hidden md:flex items-center gap-1">
@@ -258,12 +254,7 @@ function Footer() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
           <div className="sm:col-span-2 lg:col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">K</span>
-              </div>
-              <span className="text-xl font-bold tracking-tight text-foreground">
-                Kuznex
-              </span>
+              <img src={kuznexLogo} alt="Kuznex" className="h-8 w-auto" />
             </div>
             <p className="text-sm text-muted-foreground mb-4">
               Institutional-grade crypto trading platform. Secure, compliant, and trusted.

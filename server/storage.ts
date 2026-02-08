@@ -34,6 +34,8 @@ export interface IStorage {
   updateKycStatus(userId: number, status: string, rejectionReason?: string): Promise<User>;
   getSubmittedKycUsers(): Promise<User[]>;
   setUserAdmin(userId: number, isAdmin: boolean): Promise<void>;
+  getAllUsers(): Promise<User[]>;
+  getAllUsersWithWallets(): Promise<(User & { wallets: UserWallet[] })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -52,11 +54,24 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  private generateKuznexId(): string {
+    const digits = Math.floor(100000 + Math.random() * 900000).toString();
+    return `KUZ-${digits}`;
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
     const hashedPassword = await bcrypt.hash(insertUser.password, 10);
+    let kuznexId = this.generateKuznexId();
+    let attempts = 0;
+    while (attempts < 10) {
+      const existing = await db.select().from(users).where(eq(users.kuznexId, kuznexId));
+      if (existing.length === 0) break;
+      kuznexId = this.generateKuznexId();
+      attempts++;
+    }
     const [user] = await db
       .insert(users)
-      .values({ ...insertUser, password: hashedPassword })
+      .values({ ...insertUser, password: hashedPassword, kuznexId })
       .returning();
 
     for (const currency of SUPPORTED_CURRENCIES) {
@@ -140,6 +155,19 @@ export class DatabaseStorage implements IStorage {
 
   async setUserAdmin(userId: number, isAdmin: boolean): Promise<void> {
     await db.update(users).set({ isAdmin }).where(eq(users.id, userId));
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return db.select().from(users);
+  }
+
+  async getAllUsersWithWallets(): Promise<(User & { wallets: UserWallet[] })[]> {
+    const allUsers = await db.select().from(users);
+    const allWallets = await db.select().from(userWallets);
+    return allUsers.map(u => ({
+      ...u,
+      wallets: allWallets.filter(w => w.userId === u.id),
+    }));
   }
 }
 

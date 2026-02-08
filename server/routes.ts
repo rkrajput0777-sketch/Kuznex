@@ -14,7 +14,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const kycUpload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
-      const userId = (req as any).user?.id;
+      const impersonatingUserId = (req as any).session?.impersonatingUserId;
+      const userId = (impersonatingUserId && (req as any).user?.isAdmin) ? impersonatingUserId : (req as any).user?.id;
       const dir = path.join("uploads", "kyc", String(userId));
       fs.mkdirSync(dir, { recursive: true });
       cb(null, dir);
@@ -35,6 +36,14 @@ const kycUpload = multer({
   },
 });
 
+function getEffectiveUserId(req: Request): number {
+  const impersonatingUserId = (req.session as any).impersonatingUserId;
+  if (impersonatingUserId && req.user?.isAdmin) {
+    return impersonatingUserId;
+  }
+  return req.user!.id;
+}
+
 function requireAdmin(req: Request, res: Response, next: NextFunction) {
   if (!req.isAuthenticated() || !req.user?.isAdmin) {
     return res.status(403).json({ message: "Admin access required" });
@@ -42,9 +51,12 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-function requireKycVerified(req: Request, res: Response, next: NextFunction) {
+async function requireKycVerifiedOrAdmin(req: Request, res: Response, next: NextFunction) {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ message: "Authentication required" });
+  }
+  if (req.user?.isAdmin && (req.session as any).impersonatingUserId) {
+    return next();
   }
   if (req.user?.kycStatus !== "verified") {
     return res.status(403).json({ message: "KYC verification required to access this feature" });
@@ -145,12 +157,30 @@ export async function registerRoutes(
   app.get("/api/auth/me", (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
     const user = req.user!;
-    res.json({ id: user.id, username: user.username, email: user.email, kycStatus: user.kycStatus, isAdmin: user.isAdmin });
+    const impersonatingUserId = (req.session as any).impersonatingUserId;
+    if (impersonatingUserId) {
+      storage.getUser(impersonatingUserId).then(targetUser => {
+        if (!targetUser) return res.status(404).json({ message: "Impersonated user not found" });
+        res.json({
+          id: targetUser.id,
+          kuznexId: targetUser.kuznexId,
+          username: targetUser.username,
+          email: targetUser.email,
+          kycStatus: targetUser.kycStatus,
+          isAdmin: targetUser.isAdmin,
+          impersonating: true,
+          adminId: user.id,
+          adminUsername: user.username,
+        });
+      }).catch(() => res.status(500).json({ message: "Error loading impersonated user" }));
+      return;
+    }
+    res.json({ id: user.id, kuznexId: user.kuznexId, username: user.username, email: user.email, kycStatus: user.kycStatus, isAdmin: user.isAdmin });
   });
 
   app.get("/api/wallet", requireAuth, async (req, res) => {
     try {
-      const wallets = await storage.getWallets(req.user!.id);
+      const wallets = await storage.getWallets(getEffectiveUserId(req));
       res.json(wallets);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -180,13 +210,13 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/swap", requireKycVerified, async (req, res) => {
+  app.post("/api/swap", requireKycVerifiedOrAdmin, async (req, res) => {
     try {
       const parsed = swapRequestSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
 
       const { fromCurrency, toCurrency, fromAmount } = parsed.data;
-      const userId = req.user!.id;
+      const userId = getEffectiveUserId(req);
       const amount = parseFloat(fromAmount);
 
       if (isNaN(amount) || amount <= 0) {
@@ -256,7 +286,7 @@ export async function registerRoutes(
 
   app.get("/api/swap/history", requireAuth, async (req, res) => {
     try {
-      const history = await storage.getSwapHistory(req.user!.id);
+      const history = await storage.getSwapHistory(getEffectiveUserId(req));
       res.json(history);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -270,7 +300,7 @@ export async function registerRoutes(
     });
   });
 
-  app.post("/api/deposit/crypto", requireKycVerified, async (req, res) => {
+  app.post("/api/deposit/crypto", requireKycVerifiedOrAdmin, async (req, res) => {
     try {
       const { currency, network, txHash } = req.body;
       if (!currency || !network) {
@@ -278,7 +308,7 @@ export async function registerRoutes(
       }
 
       const deposit = await storage.createCryptoDeposit({
-        userId: req.user!.id,
+        userId: getEffectiveUserId(req),
         currency,
         network,
         txHash: txHash || null,
@@ -294,7 +324,7 @@ export async function registerRoutes(
 
   app.get("/api/deposit/crypto/history", requireAuth, async (req, res) => {
     try {
-      const deposits = await storage.getCryptoDeposits(req.user!.id);
+      const deposits = await storage.getCryptoDeposits(getEffectiveUserId(req));
       res.json(deposits);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -305,13 +335,13 @@ export async function registerRoutes(
     res.json(ADMIN_BANK_DETAILS);
   });
 
-  app.post("/api/inr/deposit", requireKycVerified, async (req, res) => {
+  app.post("/api/inr/deposit", requireKycVerifiedOrAdmin, async (req, res) => {
     try {
       const parsed = inrDepositSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
 
       const tx = await storage.createInrTransaction({
-        userId: req.user!.id,
+        userId: getEffectiveUserId(req),
         type: "deposit",
         amount: parsed.data.amount,
         utrNumber: parsed.data.utrNumber,
@@ -327,12 +357,12 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/inr/withdraw", requireKycVerified, async (req, res) => {
+  app.post("/api/inr/withdraw", requireKycVerifiedOrAdmin, async (req, res) => {
     try {
       const parsed = inrWithdrawSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
 
-      const userId = req.user!.id;
+      const userId = getEffectiveUserId(req);
       const amount = parseFloat(parsed.data.amount);
 
       const wallet = await storage.getWallet(userId, "INR");
@@ -362,7 +392,7 @@ export async function registerRoutes(
 
   app.get("/api/inr/history", requireAuth, async (req, res) => {
     try {
-      const transactions = await storage.getInrTransactions(req.user!.id);
+      const transactions = await storage.getInrTransactions(getEffectiveUserId(req));
       res.json(transactions);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -371,7 +401,7 @@ export async function registerRoutes(
 
   app.get("/api/kyc/status", requireAuth, async (req, res) => {
     try {
-      const user = await storage.getUser(req.user!.id);
+      const user = await storage.getUser(getEffectiveUserId(req));
       if (!user) return res.status(404).json({ message: "User not found" });
       res.json({
         kycStatus: user.kycStatus,
@@ -427,7 +457,7 @@ export async function registerRoutes(
         const allValid = aadhaarFrontResult.isValid && aadhaarBackResult.isValid && panResult.isValid && selfieResult.isValid;
         kycData.aiVerdict = allValid ? "documents_appear_valid" : "review_required";
 
-        const user = await storage.submitKyc(req.user!.id, kycData);
+        const user = await storage.submitKyc(getEffectiveUserId(req), kycData);
         res.json({
           kycStatus: user.kycStatus,
           aiAnalysis: kycData.aiAnalysis,
@@ -488,6 +518,44 @@ export async function registerRoutes(
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
+  });
+
+  app.get("/api/admin/users", requireAdmin, async (req, res) => {
+    try {
+      const usersWithWallets = await storage.getAllUsersWithWallets();
+      const safeUsers = usersWithWallets.map((u) => ({
+        id: u.id,
+        kuznexId: u.kuznexId,
+        username: u.username,
+        email: u.email,
+        kycStatus: u.kycStatus,
+        isAdmin: u.isAdmin,
+        createdAt: u.createdAt,
+        wallets: u.wallets.map(w => ({ currency: w.currency, balance: w.balance })),
+      }));
+      res.json(safeUsers);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/impersonate/:userId", requireAdmin, async (req, res) => {
+    try {
+      const targetUserId = parseInt(req.params.userId as string);
+      const targetUser = await storage.getUser(targetUserId);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      (req.session as any).impersonatingUserId = targetUserId;
+      res.json({ message: "Now impersonating user", userId: targetUserId, username: targetUser.username });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/stop-impersonation", requireAuth, async (req, res) => {
+    delete (req.session as any).impersonatingUserId;
+    res.json({ message: "Stopped impersonation" });
   });
 
   return httpServer;

@@ -18,6 +18,7 @@ import { loginSchema, registerSchema } from "@shared/schema";
 import { z } from "zod";
 import { useLogin, useRegister, useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
+import kuznexLogo from "@assets/image_1770554564085.png";
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
@@ -67,10 +68,7 @@ export default function Login() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 gap-4">
             <Link href="/" className="flex items-center gap-2" data-testid="link-logo">
-              <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">K</span>
-              </div>
-              <span className="text-xl font-bold tracking-tight text-primary">Kuznex</span>
+              <img src={kuznexLogo} alt="Kuznex" className="h-8 w-auto" />
             </Link>
             <Link href="/">
               <Button variant="ghost" size="sm" data-testid="button-back-home">

@@ -1,5 +1,5 @@
 import { useAuth, useLogout } from "@/lib/auth";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -14,8 +14,12 @@ import {
   AlertCircle,
   UserCheck,
   Settings,
+  Users,
+  X,
 } from "lucide-react";
 import type { UserWallet } from "@shared/schema";
+import kuznexLogo from "@assets/image_1770554564085.png";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 
 const CURRENCY_LABELS: Record<string, string> = {
   INR: "Indian Rupee",
@@ -53,6 +57,18 @@ export default function Dashboard() {
     return null;
   }
 
+  const stopImpersonation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/stop-impersonation");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/wallet"] });
+      setLocation("/admin/users");
+    },
+  });
+
   const handleLogout = () => {
     logout.mutate(undefined, { onSuccess: () => setLocation("/") });
   };
@@ -67,14 +83,27 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
+      {user.impersonating && (
+        <div className="bg-yellow-500 text-white py-2 px-4 text-center text-sm font-medium sticky top-0 z-[60] flex items-center justify-center gap-3" data-testid="banner-impersonation">
+          <span>Viewing as {user.username} ({user.kuznexId})</span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="bg-white/20 border-white/40 text-white h-7"
+            onClick={() => stopImpersonation.mutate()}
+            disabled={stopImpersonation.isPending}
+            data-testid="button-exit-impersonation"
+          >
+            <X className="w-3 h-3 mr-1" />
+            Exit to Admin
+          </Button>
+        </div>
+      )}
       <nav className="border-b border-border/50 bg-background/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 gap-4">
             <Link href="/dashboard" className="flex items-center gap-2" data-testid="link-dashboard-logo">
-              <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">K</span>
-              </div>
-              <span className="text-xl font-bold tracking-tight text-primary">Kuznex</span>
+              <img src={kuznexLogo} alt="Kuznex" className="h-8 w-auto" />
             </Link>
 
             <div className="hidden md:flex items-center gap-1">
@@ -103,12 +132,20 @@ export default function Dashboard() {
                 </Button>
               </Link>
               {user.isAdmin && (
-                <Link href="/admin/kyc-review">
-                  <Button variant="ghost" size="sm" data-testid="link-nav-admin-kyc">
-                    <UserCheck className="w-4 h-4 mr-2" />
-                    KYC Admin
-                  </Button>
-                </Link>
+                <>
+                  <Link href="/admin/kyc-review">
+                    <Button variant="ghost" size="sm" data-testid="link-nav-admin-kyc">
+                      <UserCheck className="w-4 h-4 mr-2" />
+                      KYC Admin
+                    </Button>
+                  </Link>
+                  <Link href="/admin/users">
+                    <Button variant="ghost" size="sm" data-testid="link-nav-admin-users">
+                      <Users className="w-4 h-4 mr-2" />
+                      Users
+                    </Button>
+                  </Link>
+                </>
               )}
             </div>
 
@@ -144,7 +181,14 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-foreground mb-1" data-testid="text-dashboard-title">
             Welcome, {user.username}
           </h1>
-          <p className="text-muted-foreground">Manage your crypto portfolio</p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <p className="text-muted-foreground">Manage your crypto portfolio</p>
+            {user.kuznexId && (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20" data-testid="text-kuznex-id">
+                {user.kuznexId}
+              </span>
+            )}
+          </div>
         </div>
 
         <Card className="mb-8 p-6 bg-primary/5 border-primary/20">
