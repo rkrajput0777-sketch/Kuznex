@@ -15,8 +15,10 @@ import {
   Lock,
   Layers,
   ChevronRight,
+  MoveRight,
 } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { motion } from "framer-motion";
 import kuznexLogo from "@assets/image_1770554564085.png";
 
 function useMousePosition() {
@@ -138,10 +140,25 @@ function Navbar() {
 
 function HeroSection() {
   const mouse = useMousePosition();
-  const heroRef = useRef<HTMLDivElement>(null);
+  const [titleNumber, setTitleNumber] = useState(0);
+  const titles = useMemo(
+    () => ["seamless", "secure", "powerful", "intelligent", "multichain"],
+    []
+  );
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (titleNumber === titles.length - 1) {
+        setTitleNumber(0);
+      } else {
+        setTitleNumber(titleNumber + 1);
+      }
+    }, 2000);
+    return () => clearTimeout(timeoutId);
+  }, [titleNumber, titles]);
 
   return (
-    <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden">
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
         <FloatingOrb className="w-[500px] h-[500px] bg-primary/20 top-[10%] left-[5%]" delay={0} />
         <FloatingOrb className="w-[400px] h-[400px] bg-primary/15 bottom-[15%] right-[10%]" delay={2} />
@@ -164,35 +181,70 @@ function HeroSection() {
         </div>
       </div>
 
-      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-32 text-center">
-        <h1
-          className="text-5xl sm:text-6xl lg:text-8xl font-bold tracking-tight mb-8 text-foreground leading-[1.05]"
-          data-testid="text-hero-heading"
-        >
-          The future of
-          <br />
-          <span className="bg-gradient-to-r from-primary via-primary/80 to-primary bg-clip-text text-transparent">
-            digital assets.
-          </span>
-        </h1>
+      <div className="relative w-full">
+        <div className="container mx-auto">
+          <div className="flex gap-8 py-20 lg:py-40 items-center justify-center flex-col">
+            <div>
+              <Link href="#platform">
+                <Button variant="secondary" size="sm" className="gap-4" data-testid="button-hero-badge">
+                  Explore the Kuznex platform <MoveRight className="w-4 h-4" />
+                </Button>
+              </Link>
+            </div>
+            <div className="flex gap-4 flex-col">
+              <h1
+                className="text-5xl md:text-7xl max-w-2xl tracking-tighter text-center font-regular"
+                data-testid="text-hero-heading"
+              >
+                <span className="text-foreground">Crypto trading made</span>
+                <span className="relative flex w-full justify-center overflow-hidden text-center md:pb-4 md:pt-1">
+                  &nbsp;
+                  {titles.map((title, index) => (
+                    <motion.span
+                      key={index}
+                      className="absolute font-semibold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent"
+                      initial={{ opacity: 0, y: "-100" }}
+                      transition={{ type: "spring", stiffness: 50 }}
+                      animate={
+                        titleNumber === index
+                          ? {
+                              y: 0,
+                              opacity: 1,
+                            }
+                          : {
+                              y: titleNumber > index ? -150 : 150,
+                              opacity: 0,
+                            }
+                      }
+                    >
+                      {title}
+                    </motion.span>
+                  ))}
+                </span>
+              </h1>
 
-        <p className="text-lg sm:text-xl text-muted-foreground max-w-xl mx-auto mb-12 leading-relaxed" data-testid="text-hero-description">
-          A unified platform to manage, trade, and grow your
-          crypto portfolio across multiple networks.
-        </p>
-
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link href="/login">
-            <Button size="lg" data-testid="button-start-trading">
-              Open Account
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </Link>
-          <a href="#platform">
-            <Button size="lg" variant="outline" data-testid="button-explore-platform">
-              Explore Platform
-            </Button>
-          </a>
+              <p
+                className="text-lg md:text-xl leading-relaxed tracking-tight text-muted-foreground max-w-2xl text-center"
+                data-testid="text-hero-description"
+              >
+                A unified platform to manage, trade, and grow your
+                digital asset portfolio across multiple networks — with
+                complete transparency at every step.
+              </p>
+            </div>
+            <div className="flex flex-row gap-3">
+              <a href="#platform">
+                <Button size="lg" className="gap-4" variant="outline" data-testid="button-explore-platform">
+                  Explore Platform <MoveRight className="w-4 h-4" />
+                </Button>
+              </a>
+              <Link href="/login">
+                <Button size="lg" className="gap-4" data-testid="button-start-trading">
+                  Get Started <MoveRight className="w-4 h-4" />
+                </Button>
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
 
