@@ -99,7 +99,26 @@ Kuznex is built as a monorepo, separating the application into `client/` (React 
 - `GET /api/user/stats` — Get user's 24h PnL, total deposited/withdrawn, current balance (auth required)
 - `GET /api/admin/user-stats` — Get all users' analytics map with net deposit and 24h change (admin only)
 
+### TDS Compliance Module (Section 194S)
+- **TDS Rate**: 1% on crypto-to-INR swaps and INR withdrawals, defined in `shared/constants.ts` as `TDS_RATE`
+- **PAN Verification**: Users must have a verified PAN card (from AI KYC) before selling crypto to INR or withdrawing INR
+- **Admin Bypass**: Admin users are exempt from PAN verification requirement
+- **Swap TDS**: Applied when `toCurrency === "INR"` — gross amount calculated, TDS deducted, net_payout credited to wallet
+- **Withdraw TDS**: Applied on INR withdrawals — TDS deducted from withdrawal amount, net_payout sent to bank
+- **Database**: `tds_amount` and `net_payout` columns on `swap_history` and `inr_transactions` tables
+- **Admin Reports**: `/admin/tds-reports` page with date range filtering and CSV export for tax filing
+- **Migration**: `supabase-migration-v5-tds.sql` — must be run in Supabase SQL Editor
+- **Storage Methods**: `getTdsSwapRecords(from, to)` and `getTdsInrWithdrawRecords(from, to)` for date-filtered queries
+
+### TDS API Endpoints
+- `GET /api/admin/tds-report?from=YYYY-MM-DD&to=YYYY-MM-DD` — Get aggregated TDS records from swaps and INR transactions (admin only)
+
 ## Recent Changes (2026-02-08)
+- Added TDS (Tax Deducted at Source) compliance system per India VDA Section 194S
+- 1% TDS deduction on crypto-to-INR swaps and INR withdrawals
+- PAN card verification gating for sell/withdraw operations
+- Admin TDS reports page with date filtering and CSV export
+- TDS breakdown preview on swap and INR withdrawal UIs with tax disclaimer
 - Added Portfolio Analytics with daily_snapshots table and midnight UTC cron job
 - Built 3D glassmorphism Portfolio Card with vanilla-tilt.js on dashboard
 - Added /api/user/stats endpoint for 24h PnL, total deposits/withdrawals

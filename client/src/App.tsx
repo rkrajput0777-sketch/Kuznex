@@ -13,6 +13,7 @@ import KycPage from "@/pages/kyc";
 import AdminKycReview from "@/pages/admin-kyc";
 import AdminUsers from "@/pages/admin-users";
 import AdminWithdrawals from "@/pages/admin-withdrawals";
+import AdminTdsReports from "@/pages/admin-tds";
 import SpotTrade from "@/pages/spot-trade";
 import NotFound from "@/pages/not-found";
 import RequireKYC from "@/components/require-kyc";
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/admin/kyc-review" component={AdminKycReview} />
       <Route path="/admin/users" component={AdminUsers} />
       <Route path="/admin/withdrawals" component={AdminWithdrawals} />
+      <Route path="/admin/tds-reports" component={AdminTdsReports} />
       <Route path="/trade/:pair">
         {(params: { pair: string }) => (
           <RequireKYC><SpotTrade pair={params.pair} /></RequireKYC>

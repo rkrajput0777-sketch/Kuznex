@@ -15,6 +15,7 @@ import {
   ArrowDown,
   Loader2,
   RefreshCw,
+  Info,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -217,6 +218,33 @@ export default function Swap() {
               </p>
             )}
 
+            {toCurrency === "INR" && estimatedOutput && parseFloat(estimatedOutput) > 0 && (
+              <div className="space-y-3" data-testid="tds-breakdown">
+                <div className="p-4 rounded-lg bg-muted/50 border border-border space-y-2">
+                  <p className="text-sm font-medium text-foreground mb-2">Transaction Breakdown</p>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Gross Amount</span>
+                    <span className="text-foreground font-medium" data-testid="text-tds-gross">{parseFloat(estimatedOutput).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">TDS (1% Govt Tax)</span>
+                    <span className="text-red-600 dark:text-red-400 font-medium" data-testid="text-tds-amount">- {(parseFloat(estimatedOutput) * 0.01).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="border-t border-border pt-2 flex items-center justify-between text-sm">
+                    <span className="font-semibold text-foreground">You Receive</span>
+                    <span className="font-bold text-green-600 dark:text-green-400" data-testid="text-tds-net">{(parseFloat(estimatedOutput) * 0.99).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 flex gap-2">
+                  <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+                  <p className="text-xs text-muted-foreground">
+                    <span className="font-semibold text-foreground">Tax Note:</span> 1% TDS is deducted as per Govt of India VDA guidelines (Section 194S). This amount is deposited against your PAN Card by Kuznex. You can <span className="font-semibold text-foreground">claim this refund</span> while filing your Income Tax Return (ITR).
+                  </p>
+                </div>
+              </div>
+            )}
+
             <Button
               className="w-full"
               onClick={handleSwap}
@@ -238,9 +266,14 @@ export default function Swap() {
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-foreground">{parseFloat(swap.from_amount).toFixed(4)} {swap.from_currency}</span>
                       <ArrowLeftRight className="w-3 h-3 text-muted-foreground" />
-                      <span className="text-sm font-medium text-primary">{parseFloat(swap.to_amount).toFixed(4)} {swap.to_currency}</span>
+                      <span className="text-sm font-medium text-primary">{parseFloat(swap.to_amount).toFixed(swap.to_currency === "INR" ? 2 : 4)} {swap.to_currency}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">{new Date(swap.created_at).toLocaleDateString()}</span>
+                    <div className="text-right">
+                      <span className="text-xs text-muted-foreground">{new Date(swap.created_at).toLocaleDateString()}</span>
+                      {swap.tds_amount && parseFloat(swap.tds_amount) > 0 && (
+                        <p className="text-xs text-muted-foreground mt-0.5">TDS: <span className="text-red-600 dark:text-red-400">{parseFloat(swap.tds_amount).toFixed(2)}</span></p>
+                      )}
+                    </div>
                   </div>
                 </Card>
               ))}

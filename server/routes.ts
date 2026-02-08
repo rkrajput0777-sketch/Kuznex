@@ -4,7 +4,7 @@ import passport from "passport";
 import { storage } from "./storage";
 import { setupAuth, requireAuth } from "./auth";
 import { registerSchema, swapRequestSchema, inrDepositSchema, inrWithdrawSchema, withdrawRequestSchema, spotOrderSchema } from "@shared/schema";
-import { COINGECKO_IDS, SWAP_SPREAD_PERCENT, ADMIN_BANK_DETAILS, SUPPORTED_NETWORKS, SUPPORTED_CHAINS, SPOT_TRADING_FEE, TRADABLE_PAIRS, VIEWABLE_PAIRS, type ChainConfig } from "@shared/constants";
+import { COINGECKO_IDS, SWAP_SPREAD_PERCENT, ADMIN_BANK_DETAILS, SUPPORTED_NETWORKS, SUPPORTED_CHAINS, SPOT_TRADING_FEE, TRADABLE_PAIRS, VIEWABLE_PAIRS, TDS_RATE, type ChainConfig } from "@shared/constants";
 import axios from "axios";
 import multer from "multer";
 import path from "path";
@@ -12,6 +12,14 @@ import fs from "fs";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getRequiredConfirmations, decryptPrivateKey } from "./crypto";
 import { ethers } from "ethers";
+
+function extractPanFromKyc(kycData: any): string | null {
+  try {
+    return kycData?.aiAnalysis?.panCard?.panNumber || null;
+  } catch {
+    return null;
+  }
+}
 
 const kycUpload = multer({
   storage: multer.diskStorage({
@@ -269,9 +277,24 @@ export async function registerRoutes(
       const effectiveRate = rawRate * spreadMultiplier;
       const toAmount = amount * effectiveRate;
 
+      let tdsAmount = 0;
+      let netPayout = toAmount;
+
+      if (toCurrency === "INR") {
+        const currentUser = await storage.getUser(userId);
+        if (!currentUser) return res.status(404).json({ message: "User not found" });
+        const pan = extractPanFromKyc(currentUser.kyc_data);
+        if (!pan && !currentUser.is_admin) {
+          return res.status(403).json({ message: "PAN Card verification required for crypto-to-INR transactions as per Govt norms." });
+        }
+        tdsAmount = toAmount * TDS_RATE;
+        netPayout = toAmount - tdsAmount;
+      }
+
       const newFromBalance = (parseFloat(fromWallet.balance) - amount).toFixed(8);
       const toWallet = await storage.getWallet(userId, toCurrency);
-      const newToBalance = (parseFloat(toWallet?.balance || "0") + toAmount).toFixed(8);
+      const creditAmount = toCurrency === "INR" ? netPayout : toAmount;
+      const newToBalance = (parseFloat(toWallet?.balance || "0") + creditAmount).toFixed(toCurrency === "INR" ? 2 : 8);
 
       await storage.updateWalletBalance(userId, fromCurrency, newFromBalance);
       await storage.updateWalletBalance(userId, toCurrency, newToBalance);
@@ -281,10 +304,12 @@ export async function registerRoutes(
         from_currency: fromCurrency,
         to_currency: toCurrency,
         from_amount: amount.toFixed(8),
-        to_amount: toAmount.toFixed(8),
+        to_amount: toAmount.toFixed(toCurrency === "INR" ? 2 : 8),
         rate: effectiveRate.toFixed(8),
         spread_percent: SWAP_SPREAD_PERCENT.toFixed(2),
         status: "completed",
+        tds_amount: tdsAmount > 0 ? tdsAmount.toFixed(2) : null,
+        net_payout: tdsAmount > 0 ? netPayout.toFixed(2) : null,
       });
 
       res.json(swap);
@@ -453,6 +478,8 @@ export async function registerRoutes(
         account_number: null,
         ifsc_code: null,
         status: "pending",
+        tds_amount: null,
+        net_payout: null,
       });
 
       res.json(tx);
@@ -469,10 +496,20 @@ export async function registerRoutes(
       const userId = getEffectiveUserId(req);
       const amount = parseFloat(parsed.data.amount);
 
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) return res.status(404).json({ message: "User not found" });
+      const pan = extractPanFromKyc(currentUser.kyc_data);
+      if (!pan && !currentUser.is_admin) {
+        return res.status(403).json({ message: "PAN Card verification required for INR withdrawals as per Govt norms." });
+      }
+
       const wallet = await storage.getWallet(userId, "INR");
       if (!wallet || parseFloat(wallet.balance) < amount) {
         return res.status(400).json({ message: "Insufficient INR balance" });
       }
+
+      const tdsAmount = amount * TDS_RATE;
+      const netPayout = amount - tdsAmount;
 
       const newBalance = (parseFloat(wallet.balance) - amount).toFixed(2);
       await storage.updateWalletBalance(userId, "INR", newBalance);
@@ -486,6 +523,8 @@ export async function registerRoutes(
         account_number: parsed.data.accountNumber,
         ifsc_code: parsed.data.ifscCode,
         status: "pending",
+        tds_amount: tdsAmount.toFixed(2),
+        net_payout: netPayout.toFixed(2),
       });
 
       res.json(tx);
@@ -1108,6 +1147,76 @@ export async function registerRoutes(
       const statsMap: Record<number, typeof stats[0]> = {};
       for (const s of stats) statsMap[s.userId] = s;
       res.json(statsMap);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/tds-report", requireAuth, async (req: any, res) => {
+    try {
+      if (!req.user?.is_admin) return res.status(403).json({ message: "Admin only" });
+
+      const startDate = (req.query.start as string) || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0];
+      const endDate = (req.query.end as string) || new Date().toISOString().split("T")[0];
+
+      const [swapRecords, inrRecords] = await Promise.all([
+        storage.getTdsSwapRecords(startDate, endDate),
+        storage.getTdsInrWithdrawRecords(startDate, endDate),
+      ]);
+
+      const allUsers = await storage.getAllUsersWithWallets();
+      const userMap: Record<number, { username: string; email: string; pan: string | null }> = {};
+      for (const u of allUsers) {
+        userMap[u.id] = {
+          username: u.username,
+          email: u.email,
+          pan: extractPanFromKyc(u.kyc_data),
+        };
+      }
+
+      const records = [
+        ...swapRecords.map((r: any) => ({
+          id: r.id,
+          date: r.created_at,
+          userId: r.user_id,
+          username: userMap[r.user_id]?.username || "Unknown",
+          email: userMap[r.user_id]?.email || "",
+          pan: userMap[r.user_id]?.pan || "N/A",
+          type: "Crypto Sell (Swap)",
+          grossAmount: r.to_amount,
+          tdsAmount: r.tds_amount,
+          netPayout: r.net_payout,
+          fromCurrency: r.from_currency,
+          fromAmount: r.from_amount,
+        })),
+        ...inrRecords.map((r: any) => ({
+          id: r.id,
+          date: r.created_at,
+          userId: r.user_id,
+          username: userMap[r.user_id]?.username || "Unknown",
+          email: userMap[r.user_id]?.email || "",
+          pan: userMap[r.user_id]?.pan || "N/A",
+          type: "INR Withdrawal",
+          grossAmount: r.amount,
+          tdsAmount: r.tds_amount,
+          netPayout: r.net_payout,
+          fromCurrency: "INR",
+          fromAmount: r.amount,
+        })),
+      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      const totalTds = records.reduce((sum, r) => sum + parseFloat(r.tdsAmount || "0"), 0);
+      const totalGross = records.reduce((sum, r) => sum + parseFloat(r.grossAmount || "0"), 0);
+
+      res.json({
+        records,
+        summary: {
+          totalRecords: records.length,
+          totalGross: totalGross.toFixed(2),
+          totalTds: totalTds.toFixed(2),
+          period: { start: startDate, end: endDate },
+        },
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

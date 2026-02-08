@@ -32,6 +32,8 @@ export interface SwapHistory {
   rate: string;
   spread_percent: string;
   status: string;
+  tds_amount: string | null;
+  net_payout: string | null;
   created_at: string;
 }
 
@@ -56,6 +58,8 @@ export interface InrTransaction {
   account_number: string | null;
   ifsc_code: string | null;
   status: string;
+  tds_amount: string | null;
+  net_payout: string | null;
   created_at: string;
 }
 

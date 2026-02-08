@@ -53,6 +53,8 @@ export interface IStorage {
   getUserTotalDeposited(userId: number): Promise<number>;
   getUserTotalWithdrawn(userId: number): Promise<number>;
   getAllUserIds(): Promise<number[]>;
+  getTdsSwapRecords(startDate: string, endDate: string): Promise<any[]>;
+  getTdsInrWithdrawRecords(startDate: string, endDate: string): Promise<any[]>;
 }
 
 export class SupabaseStorage implements IStorage {
@@ -534,6 +536,32 @@ export class SupabaseStorage implements IStorage {
       .select("id");
     if (error) throw new Error(error.message);
     return (data || []).map((u: any) => u.id);
+  }
+
+  async getTdsSwapRecords(startDate: string, endDate: string): Promise<any[]> {
+    const { data, error } = await supabase
+      .from("swap_history")
+      .select("*")
+      .eq("to_currency", "INR")
+      .not("tds_amount", "is", null)
+      .gte("created_at", startDate)
+      .lte("created_at", endDate + "T23:59:59.999Z")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
+
+  async getTdsInrWithdrawRecords(startDate: string, endDate: string): Promise<any[]> {
+    const { data, error } = await supabase
+      .from("inr_transactions")
+      .select("*")
+      .eq("type", "withdraw")
+      .not("tds_amount", "is", null)
+      .gte("created_at", startDate)
+      .lte("created_at", endDate + "T23:59:59.999Z")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return data || [];
   }
 }
 

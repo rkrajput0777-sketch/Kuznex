@@ -130,6 +130,9 @@ export const VIEWABLE_PAIRS = [
   "RNDRUSDT", "SUIUSDT", "SEIUSDT", "TIAUSDT", "JUPUSDT",
 ] as const;
 
+export const TDS_RATE = 0.01;
+export const EXCHANGE_FEE_RATE = 0.002;
+
 export const ADMIN_BANK_DETAILS = {
   bankName: "To be configured",
   accountNumber: "To be configured",

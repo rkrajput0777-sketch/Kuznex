@@ -182,6 +182,12 @@ export default function Dashboard() {
                       Users
                     </Button>
                   </Link>
+                  <Link href="/admin/tds-reports">
+                    <Button variant="ghost" size="sm" data-testid="link-nav-admin-tds">
+                      <Shield className="w-4 h-4 mr-2" />
+                      TDS
+                    </Button>
+                  </Link>
                 </>
               )}
             </div>
