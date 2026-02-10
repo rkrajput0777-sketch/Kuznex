@@ -8,7 +8,6 @@ import type { GlobalOptions as ConfettiGlobalOptions, CreateTypes as ConfettiIns
 import confetti from "canvas-confetti";
 import { useLocation } from "wouter";
 import { useLogin, useRegister, useAuth } from "@/lib/auth";
-import { useToast } from "@/hooks/use-toast";
 import kuznexLogo from "@assets/image_1770554564085.png";
 
 type Api = { fire: (options?: ConfettiOptions) => void };
@@ -158,7 +157,6 @@ export default function Login() {
   const { data: user } = useAuth();
   const loginMutation = useLogin();
   const registerMutation = useRegister();
-  const { toast } = useToast();
 
   const isEmailValid = /\S+@\S+\.\S+/.test(email);
   const isPasswordValid = password.length >= 6;
@@ -546,19 +544,16 @@ export default function Login() {
                         <ArrowLeft className="w-4 h-4" /> Go back
                       </button>
                       {!isRegister && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            toast({
-                              title: "Password Reset",
-                              description: "Please contact support at support@kuznex.in to reset your password.",
-                            });
-                          }}
-                          className="text-sm text-primary hover:underline transition-colors"
-                          data-testid="button-forgot-password"
-                        >
-                          Forgot password?
-                        </button>
+                        <span className="text-sm text-muted-foreground" data-testid="text-forgot-password">
+                          Forgot Password?{" "}
+                          <a
+                            href="mailto:support@Kuznex.in"
+                            className="text-primary font-medium hover:underline transition-colors"
+                            data-testid="link-forgot-password-email"
+                          >
+                            Contact support@Kuznex.in
+                          </a>
+                        </span>
                       )}
                     </div>
                   </BlurFade>
