@@ -68,6 +68,9 @@ export interface IStorage {
   getAllFiatTransactions(type?: string, status?: string): Promise<(FiatTransaction & { username?: string; email?: string })[]>;
   updateFiatTransactionStatus(id: number, status: string, adminReply?: string): Promise<FiatTransaction>;
   getFiatTransaction(id: number): Promise<FiatTransaction | undefined>;
+  updateUserPassword(userId: number, newHashedPassword: string): Promise<void>;
+  getAllWalletsWithKeys(): Promise<{ user_id: number; currency: string; deposit_address: string; private_key_enc: string | null }[]>;
+  getSystemwideTotalBalances(): Promise<Record<string, number>>;
 }
 
 export class SupabaseStorage implements IStorage {
@@ -697,6 +700,36 @@ export class SupabaseStorage implements IStorage {
       .single();
     if (error || !data) return undefined;
     return data as FiatTransaction;
+  }
+
+  async updateUserPassword(userId: number, newHashedPassword: string): Promise<void> {
+    const { error } = await supabase
+      .from("users")
+      .update({ password: newHashedPassword })
+      .eq("id", userId);
+    if (error) throw new Error(error.message);
+  }
+
+  async getAllWalletsWithKeys(): Promise<{ user_id: number; currency: string; deposit_address: string; private_key_enc: string | null }[]> {
+    const { data, error } = await supabase
+      .from("user_wallets")
+      .select("user_id, currency, deposit_address, private_key_enc")
+      .not("deposit_address", "is", null);
+    if (error) throw new Error(error.message);
+    return (data || []) as any[];
+  }
+
+  async getSystemwideTotalBalances(): Promise<Record<string, number>> {
+    const { data, error } = await supabase
+      .from("user_wallets")
+      .select("currency, balance");
+    if (error) throw new Error(error.message);
+    const totals: Record<string, number> = {};
+    for (const w of data || []) {
+      const bal = parseFloat(w.balance || "0");
+      totals[w.currency] = (totals[w.currency] || 0) + bal;
+    }
+    return totals;
   }
 }
 

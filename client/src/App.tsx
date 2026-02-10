@@ -19,6 +19,9 @@ import AdminTdsReports from "@/pages/admin-tds";
 import AdminMessages from "@/pages/admin-messages";
 import AdminRates from "@/pages/admin-rates";
 import AdminFiatApprovals from "@/pages/admin-fiat";
+import AdminFunds from "@/pages/admin-funds";
+import AdminFiatSettings from "@/pages/admin-fiat-settings";
+import AdminCryptoWithdrawals from "@/pages/admin-crypto-withdrawals";
 import SpotTrade from "@/pages/spot-trade";
 import { PrivacyPolicy, TermsOfService, RiskDisclosure, AmlPolicy, TdsCompliance } from "@/pages/legal";
 import NotFound from "@/pages/not-found";
@@ -58,6 +61,15 @@ function Router() {
       </Route>
       <Route path="/admin/fiat-approvals">
         <AdminGuard><AdminFiatApprovals /></AdminGuard>
+      </Route>
+      <Route path="/admin/funds">
+        <AdminGuard><AdminFunds /></AdminGuard>
+      </Route>
+      <Route path="/admin/fiat-settings">
+        <AdminGuard><AdminFiatSettings /></AdminGuard>
+      </Route>
+      <Route path="/admin/crypto-withdrawals">
+        <AdminGuard><AdminCryptoWithdrawals /></AdminGuard>
       </Route>
       <Route path="/trade/:pair">
         {(params: { pair: string }) => (

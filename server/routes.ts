@@ -1543,5 +1543,170 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/admin/fund-overview", requireAdmin, async (_req, res) => {
+    try {
+      const systemBalances = await storage.getSystemwideTotalBalances();
+      const allWallets = await storage.getAllWalletsWithKeys();
+
+      const uniqueAddresses = new Set<string>();
+      for (const w of allWallets) {
+        if (w.deposit_address) uniqueAddresses.add(w.deposit_address.toLowerCase());
+      }
+
+      const onChainBalances: Record<string, Record<string, string>> = {};
+      const sampleAddresses = Array.from(uniqueAddresses).slice(0, 5);
+
+      for (const addr of sampleAddresses) {
+        onChainBalances[addr] = {};
+        for (const [chainId, chain] of Object.entries(SUPPORTED_CHAINS).slice(0, 2)) {
+          try {
+            const provider = new ethers.JsonRpcProvider(chain.rpcUrl);
+            const balance = await provider.getBalance(addr);
+            if (balance > BigInt(0)) {
+              onChainBalances[addr][chainId] = ethers.formatEther(balance);
+            }
+          } catch {}
+        }
+      }
+
+      res.json({
+        systemBalances,
+        totalWallets: uniqueAddresses.size,
+        coldWallet: process.env.ADMIN_COLD_WALLET || "Not configured",
+        sampleOnChainBalances: onChainBalances,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/fiat-settings", requireAdmin, async (_req, res) => {
+    try {
+      const settings = await storage.getAllPlatformSettings();
+      res.json({
+        upi_id: settings.upi_id || "",
+        bank_account_number: settings.bank_account_number || "",
+        bank_ifsc: settings.bank_ifsc || "",
+        bank_account_name: settings.bank_account_name || "",
+        bank_name: settings.bank_name || "",
+        is_upi_enabled: settings.is_upi_enabled === "true",
+        is_bank_enabled: settings.is_bank_enabled === "true",
+        is_imps_enabled: settings.is_imps_enabled === "true",
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/fiat-settings", requireAdmin, async (req, res) => {
+    try {
+      const { upi_id, bank_account_number, bank_ifsc, bank_account_name, bank_name, is_upi_enabled, is_bank_enabled, is_imps_enabled } = req.body;
+
+      if (upi_id !== undefined) await storage.setPlatformSetting("upi_id", upi_id);
+      if (bank_account_number !== undefined) await storage.setPlatformSetting("bank_account_number", bank_account_number);
+      if (bank_ifsc !== undefined) await storage.setPlatformSetting("bank_ifsc", bank_ifsc);
+      if (bank_account_name !== undefined) await storage.setPlatformSetting("bank_account_name", bank_account_name);
+      if (bank_name !== undefined) await storage.setPlatformSetting("bank_name", bank_name);
+      if (is_upi_enabled !== undefined) await storage.setPlatformSetting("is_upi_enabled", String(is_upi_enabled));
+      if (is_bank_enabled !== undefined) await storage.setPlatformSetting("is_bank_enabled", String(is_bank_enabled));
+      if (is_imps_enabled !== undefined) await storage.setPlatformSetting("is_imps_enabled", String(is_imps_enabled));
+
+      res.json({ message: "Fiat settings updated successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/fiat/payment-info", requireAuth, async (_req, res) => {
+    try {
+      const settings = await storage.getAllPlatformSettings();
+      res.json({
+        upiId: settings.is_upi_enabled === "true" ? (settings.upi_id || null) : null,
+        bankDetails: settings.is_bank_enabled === "true" ? {
+          accountNumber: settings.bank_account_number || null,
+          ifsc: settings.bank_ifsc || null,
+          accountName: settings.bank_account_name || null,
+          bankName: settings.bank_name || null,
+        } : null,
+        isImpsEnabled: settings.is_imps_enabled === "true",
+        isUpiEnabled: settings.is_upi_enabled === "true",
+        isBankEnabled: settings.is_bank_enabled === "true",
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/reset-password", requireAdmin, async (req, res) => {
+    try {
+      const { userId, newPassword } = req.body;
+      if (!userId || !newPassword) return res.status(400).json({ message: "userId and newPassword are required" });
+      if (newPassword.length < 6) return res.status(400).json({ message: "Password must be at least 6 characters" });
+
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      const hashedPassword = await (await import("bcrypt")).hash(newPassword, 10);
+      await storage.updateUserPassword(userId, hashedPassword);
+
+      res.json({ message: `Password reset for ${user.username} (${user.email})` });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ message: "Email is required" });
+
+      res.json({ message: "If an account exists with this email, a password reset has been initiated. Please contact support at support@Kuznex.in for further assistance." });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/crypto-withdrawals/:txId/send", requireAdmin, async (req, res) => {
+    try {
+      const txId = parseInt(req.params.txId as string);
+      const tx = await storage.getTransaction(txId);
+      if (!tx) return res.status(404).json({ message: "Transaction not found" });
+      if (tx.type !== "withdraw" || tx.status !== "pending") {
+        return res.status(400).json({ message: "Transaction is not a pending withdrawal" });
+      }
+
+      if (!tx.withdraw_address) return res.status(400).json({ message: "No withdrawal address" });
+
+      const network = tx.network;
+      const chain = SUPPORTED_CHAINS[network];
+      if (!chain) return res.status(400).json({ message: "Unsupported network" });
+
+      const masterKey = process.env.MASTER_PRIVATE_KEY;
+      if (!masterKey) return res.status(500).json({ message: "MASTER_PRIVATE_KEY not configured" });
+
+      const provider = new ethers.JsonRpcProvider(chain.rpcUrl);
+      const signer = new ethers.Wallet(masterKey, provider);
+
+      const sendAmount = ethers.parseEther(tx.amount);
+      const gasPrice = (await provider.getFeeData()).gasPrice || BigInt(5000000000);
+      const gasLimit = BigInt(21000);
+
+      const txResp = await signer.sendTransaction({
+        to: tx.withdraw_address,
+        value: sendAmount,
+        gasLimit,
+        gasPrice,
+      });
+
+      await storage.updateTransactionStatus(txId, "completed", `On-chain tx: ${txResp.hash}`);
+      const { supabase: sb } = await import("./supabase");
+      await sb.from("transactions").update({ tx_hash: txResp.hash }).eq("id", txId);
+
+      res.json({ txHash: txResp.hash, status: "completed" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return httpServer;
 }

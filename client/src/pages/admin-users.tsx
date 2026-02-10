@@ -3,6 +3,16 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Loader2,
   ArrowLeft,
@@ -11,7 +21,9 @@ import {
   Users,
   TrendingUp,
   TrendingDown,
+  KeyRound,
 } from "lucide-react";
+import { useState } from "react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import kuznexLogo from "@assets/image_1770554564085.png";
@@ -39,6 +51,8 @@ export default function AdminUsers() {
   const { data: user, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [resetPasswordUser, setResetPasswordUser] = useState<AdminUser | null>(null);
+  const [newPassword, setNewPassword] = useState("");
 
   const { data: allUsers, isLoading: usersLoading } = useQuery<AdminUser[]>({
     queryKey: ["/api/admin/users"],
@@ -49,6 +63,21 @@ export default function AdminUsers() {
     queryKey: ["/api/admin/user-stats"],
     enabled: !!user?.isSuperAdmin,
     refetchInterval: 120000,
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: async ({ userId, newPassword }: { userId: number; newPassword: string }) => {
+      const res = await apiRequest("POST", "/api/admin/reset-password", { userId, newPassword });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      toast({ title: "Password reset", description: data.message });
+      setResetPasswordUser(null);
+      setNewPassword("");
+    },
+    onError: (err: any) => {
+      toast({ title: "Reset failed", description: err.message, variant: "destructive" });
+    },
   });
 
   const impersonateMutation = useMutation({
@@ -207,24 +236,37 @@ export default function AdminUsers() {
                           )}
                         </td>
                         <td className="p-4">
-                          {!u.isAdmin && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => impersonateMutation.mutate(u.id)}
-                              disabled={impersonateMutation.isPending}
-                              data-testid={`button-impersonate-${u.id}`}
-                            >
-                              <Eye className="w-3.5 h-3.5 mr-1.5" />
-                              Login As User
-                            </Button>
-                          )}
-                          {u.isAdmin && (
-                            <span className="inline-flex items-center gap-1 text-xs text-primary">
-                              <Shield className="w-3.5 h-3.5" />
-                              Admin
-                            </span>
-                          )}
+                          <div className="flex gap-2 flex-wrap">
+                            {!u.isAdmin && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => impersonateMutation.mutate(u.id)}
+                                disabled={impersonateMutation.isPending}
+                                data-testid={`button-impersonate-${u.id}`}
+                              >
+                                <Eye className="w-3.5 h-3.5 mr-1.5" />
+                                Login As
+                              </Button>
+                            )}
+                            {!u.isAdmin && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => { setResetPasswordUser(u); setNewPassword(""); }}
+                                data-testid={`button-reset-pw-${u.id}`}
+                              >
+                                <KeyRound className="w-3.5 h-3.5 mr-1.5" />
+                                Reset PW
+                              </Button>
+                            )}
+                            {u.isAdmin && (
+                              <span className="inline-flex items-center gap-1 text-xs text-primary">
+                                <Shield className="w-3.5 h-3.5" />
+                                Admin
+                              </span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -240,6 +282,48 @@ export default function AdminUsers() {
           </Card>
         )}
       </main>
+
+      <Dialog open={!!resetPasswordUser} onOpenChange={(open) => { if (!open) { setResetPasswordUser(null); setNewPassword(""); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              {resetPasswordUser && (
+                <>Set a new password for <span className="font-medium text-foreground">{resetPasswordUser.username}</span> ({resetPasswordUser.email})</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm text-muted-foreground mb-2 block">New Password</Label>
+              <Input
+                type="text"
+                placeholder="Enter new password (min 6 characters)"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                data-testid="input-new-password"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                if (resetPasswordUser && newPassword.length >= 6) {
+                  resetPasswordMutation.mutate({ userId: resetPasswordUser.id, newPassword });
+                }
+              }}
+              disabled={resetPasswordMutation.isPending || newPassword.length < 6}
+              data-testid="button-confirm-reset-pw"
+            >
+              {resetPasswordMutation.isPending ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Resetting...</>
+              ) : (
+                <><KeyRound className="w-4 h-4 mr-2" />Reset Password</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -541,9 +541,26 @@ export default function Login() {
                     </div>
                   </div>
                   <BlurFade inView delay={0.2}>
-                    <button type="button" onClick={handleGoBack} className="mt-4 flex items-center gap-2 text-sm text-foreground/70 hover:text-foreground transition-colors" data-testid="button-go-back-password">
-                      <ArrowLeft className="w-4 h-4" /> Go back
-                    </button>
+                    <div className="mt-4 flex items-center justify-between flex-wrap gap-2">
+                      <button type="button" onClick={handleGoBack} className="flex items-center gap-2 text-sm text-foreground/70 hover:text-foreground transition-colors" data-testid="button-go-back-password">
+                        <ArrowLeft className="w-4 h-4" /> Go back
+                      </button>
+                      {!isRegister && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            toast({
+                              title: "Password Reset",
+                              description: "Please contact support at support@kuznex.in to reset your password.",
+                            });
+                          }}
+                          className="text-sm text-primary hover:underline transition-colors"
+                          data-testid="button-forgot-password"
+                        >
+                          Forgot password?
+                        </button>
+                      )}
+                    </div>
                   </BlurFade>
                 </BlurFade>
               )}
