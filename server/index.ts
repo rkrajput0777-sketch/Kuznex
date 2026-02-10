@@ -9,7 +9,12 @@ import { SUPER_ADMIN_EMAIL } from "@shared/constants";
 import { runAutoMigration } from "./migrate";
 
 function validateRequiredSecrets(): void {
-  const required: Array<{ key: string; label: string }> = [
+  const critical: Array<{ key: string; label: string }> = [
+    { key: "NEXT_PUBLIC_SUPABASE_URL", label: "NEXT_PUBLIC_SUPABASE_URL (Supabase project URL)" },
+    { key: "NEXT_PUBLIC_SUPABASE_ANON_KEY", label: "NEXT_PUBLIC_SUPABASE_ANON_KEY (Supabase anon key)" },
+  ];
+
+  const optional: Array<{ key: string; label: string }> = [
     { key: "MASTER_PRIVATE_KEY", label: "MASTER_PRIVATE_KEY (Hot wallet private key for sending withdrawals)" },
     { key: "ADMIN_COLD_WALLET", label: "ADMIN_COLD_WALLET (Cold wallet address for emergency sweeps)" },
     { key: "ENCRYPTION_KEY", label: "ENCRYPTION_KEY (AES-256 key for encrypting user wallet private keys)" },
@@ -17,30 +22,19 @@ function validateRequiredSecrets(): void {
     { key: "SESSION_SECRET", label: "SESSION_SECRET (Express session secret)" },
   ];
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  const missing: string[] = [];
-
-  for (const { key, label } of required) {
+  const missingCritical: string[] = [];
+  for (const { key, label } of critical) {
     if (!process.env[key]) {
-      missing.push(label);
+      missingCritical.push(label);
     }
   }
 
-  if (!supabaseUrl) {
-    missing.push("NEXT_PUBLIC_SUPABASE_URL (Supabase project URL)");
-  }
-  if (!supabaseKey) {
-    missing.push("NEXT_PUBLIC_SUPABASE_ANON_KEY (Supabase anon key)");
-  }
-
-  if (missing.length > 0) {
+  if (missingCritical.length > 0) {
     console.error("");
     console.error("=".repeat(70));
     console.error("CRITICAL: MISSING SECRETS! Please add Keys in Tools > Secrets.");
     console.error("=".repeat(70));
-    for (const m of missing) {
+    for (const m of missingCritical) {
       console.error(`  - ${m}`);
     }
     console.error("=".repeat(70));
@@ -48,6 +42,25 @@ function validateRequiredSecrets(): void {
     console.error("=".repeat(70));
     console.error("");
     process.exit(1);
+  }
+
+  const missingOptional: string[] = [];
+  for (const { key, label } of optional) {
+    if (!process.env[key]) {
+      missingOptional.push(label);
+    }
+  }
+
+  if (missingOptional.length > 0) {
+    console.warn("");
+    console.warn("=".repeat(70));
+    console.warn("WARNING: Some optional secrets are missing. Related features will be disabled.");
+    console.warn("=".repeat(70));
+    for (const m of missingOptional) {
+      console.warn(`  - ${m}`);
+    }
+    console.warn("=".repeat(70));
+    console.warn("");
   }
 
   console.log("");
