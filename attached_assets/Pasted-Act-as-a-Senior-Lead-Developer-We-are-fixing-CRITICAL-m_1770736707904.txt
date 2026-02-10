@@ -1,0 +1,50 @@
+Act as a Senior Lead Developer. We are fixing CRITICAL missing features in the Admin Panel. The Admin currently has NO control over funds or settings.
+
+### IMMEDIATE ACTION REQUIRED: Implement the following 4 Modules.
+
+### 1. FUND CONTROL: "EMERGENCY SWEEP" BUTTON
+- Where: Create a new Admin Page /admin/funds.
+- UI: Display "Total User Balance (Systemwide)" vs "Actual Wallet Balance on Chain".
+- The Button: Add a big Red Button: "SWEEP ALL FUNDS TO COLD WALLET".
+- Backend Logic (The Sweep Function):
+  1. Iterate through ALL user wallets in the database.
+  2. Check balance of USDT/BNB/MATIC on-chain using the Provider.
+  3. If Balance > Gas Fee:
+     - Use MASTER_PRIVATE_KEY (if it controls these wallets) OR the user's encrypted private key (decrypted using ENCRYPTION_KEY) to sign a transaction.
+     - Send the MAX funds to process.env.ADMIN_COLD_WALLET.
+  4. Log the total amount swept.
+- Why: I need full custody of the funds at the end of the day.
+
+### 2. FIAT SETTINGS (Dynamic Admin Bank Details)
+- Where: Create /admin/fiat-settings.
+- Database: Create/Update system_settings table to store upi_id, bank_details, imps_details, is_upi_enabled (bool), is_bank_enabled (bool).
+- UI:
+  - Toggle Switches: Enable/Disable UPI, IMPS, Bank Transfer.
+  - Input Fields: Text areas to enter "My UPI ID", "Account Number", "IFSC", "Account Name".
+  - Save Button: Updates the database immediately.
+- Impact: The User's "Deposit INR" page must FETCH these details dynamically. If I change my UPI here, it updates for users instantly.
+
+### 3. USER MANAGEMENT & PASSWORDS
+- Security Note: We cannot "see" user passwords because they are hashed (Supabase/Bcrypt). This is standard security.
+- Solution: Add a "Reset Password" button in /admin/users.
+  - Action: Admin clicks "Reset" -> Enters a new temporary password -> Updates user's auth record.
+- Frontend (User Side):
+  - Add a "Forgot Password?" link on the Login Page.
+  - Simple Flow: User enters Email -> System sends a "Reset Link" (Supabase Auth default) OR allows them to reset via OTP if configured.
+
+### 4. CRYPTO WITHDRAWAL APPROVALS
+- Where: Create /admin/crypto-withdrawals.
+- UI: A table showing "Pending" crypto withdrawal requests.
+- Columns: User, Coin, Amount, Destination Address, Date.
+- Actions:
+  - Button "Approve & Send":
+    - Trigger Backend: Decrypt MASTER_PRIVATE_KEY (Hot Wallet).
+    - Send funds on-chain.
+    - Update DB status to completed.
+  - Button "Reject": Refund the amount to User's internal wallet balance.
+
+### EXECUTION INSTRUCTIONS:
+- Ensure all these pages are protected by the rkrajput0777@gmail.com check.
+- Make the UI look like a control center (Dashboards, Tables, Toggles).
+
+BUILD THESE 4 MODULES NOW.
