@@ -2,9 +2,7 @@
 
 ## Overview
 
-Kuznex is a crypto trading and exchange platform designed for "Kuznex Pvt Ltd." It offers user authentication, a dashboard with wallet management, instant crypto swaps with live prices, automated multi-chain crypto deposits with unique per-user addresses, manual admin-approved withdrawals, INR on/off-ramp, and AI-powered KYC using Google Gemini. The platform also includes an extensive admin panel for user management, impersonation, and balance adjustments. Key capabilities include a Binance-style spot trading interface with real-time price data and an embedded TradingView chart, as well as portfolio analytics with daily snapshots and a 3D portfolio card.
-
-The project aims to provide a robust, secure, and user-friendly platform for cryptocurrency exchange and trading, catering to the specific needs of a proprietary trading firm while offering advanced features for its users.
+Kuznex is a comprehensive crypto trading and exchange platform designed for "Kuznex Pvt Ltd." It provides a secure and user-friendly environment for cryptocurrency transactions, featuring user authentication, an interactive dashboard with wallet management, and instant crypto swaps. The platform supports automated multi-chain crypto deposits with unique user addresses and manual, admin-approved withdrawals. It also incorporates INR on/off-ramp capabilities and AI-powered KYC using Google Gemini. A robust admin panel facilitates user management, impersonation, and balance adjustments. Key functionalities include a Binance-style spot trading interface with real-time data and an embedded TradingView chart, as well as portfolio analytics with daily snapshots and a 3D portfolio card. The project aims to deliver a secure and advanced platform for cryptocurrency exchange and trading, addressing the specific requirements of a proprietary trading firm and its users.
 
 ## User Preferences
 
@@ -13,11 +11,10 @@ STRICT REQUIREMENT: Use external Supabase database (project will be migrated to 
 
 ## System Architecture
 
-Kuznex is built as a monorepo, separating the application into `client/` (React frontend), `server/` (Express backend), and `shared/` (common code).
+Kuznex is structured as a monorepo, comprising `client/` (React frontend), `server/` (Express backend), and `shared/` (common code).
 
 ### Frontend Architecture
-- **Framework**: React 18 with TypeScript.
-- **Bundler**: Vite.
+- **Framework**: React 18 with TypeScript, using Vite as a bundler.
 - **Routing**: Wouter.
 - **State Management**: TanStack React Query for server-side data.
 - **UI Components**: shadcn/ui (New York style) built on Radix UI primitives.
@@ -31,7 +28,7 @@ Kuznex is built as a monorepo, separating the application into `client/` (React 
 - **Storage Pattern**: Interface-based (`IStorage`) with a `SupabaseStorage` implementation.
 - **Authentication**: Passport-local strategy using bcrypt for password hashing and memorystore for session management.
 - **Crypto Operations**: `ethers.js` for wallet generation and `AES-256-GCM` for private key encryption.
-- **Deposit Watcher**: A background job that polls the Etherscan V2 Multichain API every 60 seconds across 8 chains to detect and auto-credit deposits after 12 block confirmations.
+- **Deposit Watcher**: A background job polls the Etherscan V2 Multichain API across 8 chains to detect and auto-credit deposits after 12 block confirmations.
 
 ### Database
 - **Provider**: External Supabase (PostgreSQL).
@@ -40,43 +37,31 @@ Kuznex is built as a monorepo, separating the application into `client/` (React 
 - **Row Level Security (RLS)**: Disabled for server-side anon key access.
 - **Field Naming**: `snake_case`.
 
-### Authentication
-- Uses Passport-local with bcrypt for secure password hashing and memorystore for sessions.
-- Automatically generates wallet entries with deposit addresses for all supported currencies upon user registration.
-- Includes admin impersonation functionality.
-
-### Admin Access Control (Security Hardened)
-- **Super Admin Email**: Only `rkrajput0777@gmail.com` (hardcoded as `SUPER_ADMIN_EMAIL` in `shared/constants.ts`) can access admin routes.
-- **Backend**: `requireAdmin` middleware checks both `is_admin` flag AND email match; returns **404 Not Found** (not 403) to prevent route discovery.
-- **Frontend**: `AdminGuard` component (`client/src/components/admin-guard.tsx`) wraps all `/admin/*` routes in `App.tsx`; renders the generic 404 page for unauthorized users.
-- **API Response**: `/api/auth/me` returns `isSuperAdmin: true` only when both `is_admin` and email match.
-- **Inline admin checks**: Routes using `requireAuth` with inline admin checks (`/api/admin/user-stats`, `/api/admin/tds-report`) also verify email + return 404.
-
-### Hybrid Fund System
-- **Deposits**: Fully automated and real-time. Each user receives a unique EVM deposit address. A background watcher monitors transactions across 8 chains, crediting user balances upon reaching a configurable confirmation threshold.
-- **Withdrawals**: Manual admin approval process. Users submit requests, balances are held, and administrators manually approve or reject, with on-chain transactions managed by a `MASTER_PRIVATE_KEY`.
-
-### Spot Trading Module
-- Provides a Binance-style trading interface for pairs like BTC/USDT, ETH/USDT, BNB/USDT.
-- Utilizes Binance WebSocket for real-time price data and embeds a TradingView chart.
-- Orders are executed instantly at market price with a configurable 0.1% trading fee.
-
-### Portfolio Analytics Module
-- **Daily Snapshots**: A cron job captures user portfolio values daily.
-- **Dashboard Integration**: Displays total value, 24h PnL, and deposit/withdrawal stats on a 3D glassmorphism card.
-- **Admin Analytics**: Provides insights into user net deposits and 24h activity, including Whale/Risk indicators.
+### Core Features
+- **Authentication**: Passport-local with bcrypt; automatically generates wallet entries for supported currencies upon user registration. Includes admin impersonation.
+- **Admin Access Control**: Super admin email `rkrajput0777@gmail.com` with specific backend and frontend security measures (404 for unauthorized access).
+- **Hybrid Fund System**: Automated real-time deposits with unique EVM addresses and a background watcher; manual admin-approved withdrawals with transactions managed by `MASTER_PRIVATE_KEY`.
+- **Spot Trading Module**: Binance-style interface for 300+ pairs (e.g., BTC/USDT, ETH/USDT) with Binance WebSocket real-time data and embedded TradingView charts. Orders execute instantly at market price with a 0.1% trading fee.
+- **Portfolio Analytics Module**: Daily snapshots of user portfolio values via cron job; dashboard displays total value, 24h PnL, and deposit/withdrawal stats on a 3D glassmorphism card. Admin analytics include net deposits and 24h activity with Whale/Risk indicators.
+- **TDS Compliance Module (Section 194S)**: 1% TDS on crypto-to-INR swaps and INR withdrawals. Requires verified PAN card for non-admin users. Admin reports with CSV export available.
+- **Contact Support System**: Public contact form and admin portal for message management (status: `new`, `replied`, `archived`).
+- **Fiat Buy/Sell USDT**: Admin-approved workflow for INR to USDT (buy) and USDT to INR (sell) transactions, including TDS deduction on sell. Configurable buy/sell rates.
+- **Admin Fund Control Module**: System-wide balance overview, sample on-chain balance check, and emergency sweep to a cold wallet.
+- **Admin Fiat Settings Module**: Dynamic bank/UPI payment configuration with enable/disable toggles.
+- **Admin Password Management**: Admins can reset non-admin user passwords.
+- **Admin Crypto Withdrawal Approvals Module**: Manage pending crypto withdrawal requests, including on-chain sending and refunding.
 
 ## External Dependencies
 
 ### Database
-- **Supabase**: External PostgreSQL database, accessed via `@supabase/supabase-js`.
+- **Supabase**: External PostgreSQL database accessed via `@supabase/supabase-js`.
 
 ### Frontend Libraries
-- **@tanstack/react-query**: For server state management.
-- **wouter**: Lightweight client-side router.
-- **react-hook-form** + **zod**: For form handling and validation.
+- **@tanstack/react-query**: Server state management.
+- **wouter**: Client-side router.
+- **react-hook-form** + **zod**: Form handling and validation.
 - **Radix UI** (via **shadcn/ui**): Accessible UI components.
-- **Tailwind CSS**: For styling.
+- **Tailwind CSS**: Styling.
 - **Lucide React**: Icon library.
 
 ### Backend Libraries
@@ -87,102 +72,10 @@ Kuznex is built as a monorepo, separating the application into `client/` (React 
 - **bcrypt**: Password hashing.
 - **ethers**: Ethereum wallet generation and transaction signing.
 - **axios**: HTTP client.
-- **@google/generative-ai**: Google Gemini API client for AI-powered KYC.
+- **@google/generative-ai**: Google Gemini API client.
 
 ### External APIs
 - **CoinGecko API**: Real-time cryptocurrency price feeds.
 - **Etherscan V2 Multichain API**: Unified blockchain monitoring across 8 supported chains (Ethereum, BSC, Polygon, Base, Arbitrum, Optimism, Avalanche, Fantom).
 - **Google Gemini AI**: For KYC document analysis and verification.
-- **Binance WebSocket**: For real-time spot trading price data.
-
-### Portfolio Analytics Module
-- **Daily Snapshots**: Background cron job (`server/snapshot-cron.ts`) captures user portfolio values at midnight UTC
-- **Database**: `daily_snapshots` table (id, user_id, date, total_balance_usdt, created_at) with unique(user_id, date)
-- **3D Portfolio Card**: Glassmorphism card with `vanilla-tilt.js` on dashboard showing total value, 24h PnL, deposit/withdrawal stats
-- **Admin Analytics**: User management table includes Net Deposit and 24h Activity columns with Whale/Risk indicators
-- **Migration**: `supabase-migration-v4-analytics.sql` — must be run in Supabase SQL Editor
-
-### Portfolio Analytics API Endpoints
-- `GET /api/user/stats` — Get user's 24h PnL, total deposited/withdrawn, current balance (auth required)
-- `GET /api/admin/user-stats` — Get all users' analytics map with net deposit and 24h change (admin only)
-
-### TDS Compliance Module (Section 194S)
-- **TDS Rate**: 1% on crypto-to-INR swaps and INR withdrawals, defined in `shared/constants.ts` as `TDS_RATE`
-- **PAN Verification**: Users must have a verified PAN card (from AI KYC) before selling crypto to INR or withdrawing INR
-- **Admin Bypass**: Admin users are exempt from PAN verification requirement
-- **Swap TDS**: Applied when `toCurrency === "INR"` — gross amount calculated, TDS deducted, net_payout credited to wallet
-- **Withdraw TDS**: Applied on INR withdrawals — TDS deducted from withdrawal amount, net_payout sent to bank
-- **Database**: `tds_amount` and `net_payout` columns on `swap_history` and `inr_transactions` tables
-- **Admin Reports**: `/admin/tds-reports` page with date range filtering and CSV export for tax filing
-- **Migration**: `supabase-migration-v5-tds.sql` — must be run in Supabase SQL Editor
-- **Storage Methods**: `getTdsSwapRecords(from, to)` and `getTdsInrWithdrawRecords(from, to)` for date-filtered queries
-
-### TDS API Endpoints
-- `GET /api/admin/tds-report?from=YYYY-MM-DD&to=YYYY-MM-DD` — Get aggregated TDS records from swaps and INR transactions (admin only)
-
-### Contact Support System
-- **Database Table**: `contact_messages` (id, user_id nullable, name, email, subject, message, status, created_at)
-- **Status Values**: `new`, `replied`, `archived`
-- **Public Form**: `/contact` page with subject dropdown (Deposit Issue, KYC, Withdrawal, Technical, Account, Other)
-- **Admin Portal**: `/admin/messages` with filter by status, expand to read, reply via mailto, mark replied/archived
-- **Migration**: `supabase-migration-v6-contact.sql` — must be run in Supabase SQL Editor
-
-### Contact API Endpoints
-- `POST /api/contact` — Submit a contact message (public, optionally authenticated)
-- `GET /api/admin/messages` — List all contact messages (admin only)
-- `PATCH /api/admin/messages/:id` — Update message status (admin only)
-
-### Legal Pages
-- `/legal/privacy-policy` — Privacy Policy
-- `/legal/terms` — Terms of Service
-- `/legal/risk-disclosure` — Risk Disclosure
-- `/legal/aml-policy` — Anti-Money Laundering Policy
-- `/legal/tds-compliance` — TDS Compliance (Section 194S explanation)
-
-### SEO
-- Domain: `kuznex.in` (all canonical URLs, OG tags, sitemap use .in domain)
-- Support email: `support@Kuznex.in` (across contact page, legal pages, meta tags)
-- Global meta tags: title, description, massive keyword list, OG tags, Twitter cards optimized for Indian crypto keywords
-- Per-page SEO via `react-helmet-async` with Helmet component on Home, Contact, and all Legal pages
-- `sitemap.xml` — public pages only (home, login, contact, legal pages; auth-gated routes excluded)
-- `robots.txt` — Disallow auth-gated routes (/swap, /trade, /deposit, /inr, /withdraw, /admin, /dashboard, /kyc)
-- Canonical URL set to `https://kuznex.in/`
-
-### Fiat Buy/Sell USDT (Admin Approval Workflow)
-- **Database Table**: `fiat_transactions` (id, user_id, type, amount, usdt_amount, rate, utr_number, screenshot, bank_name, account_number, ifsc_code, status, admin_reply, tds_amount, net_payout, created_at, updated_at)
-- **Status Values**: `pending`, `approved`, `completed`, `rejected`
-- **Buy Flow**: User transfers INR to platform bank account → submits UTR + amount → admin verifies → approves (credits USDT) or rejects
-- **Sell Flow**: User submits USDT amount + bank details → USDT deducted immediately → admin approves → sends INR manually → marks complete. On rejection, USDT refunded.
-- **TDS**: 1% TDS deducted on sell transactions per Section 194S
-- **Admin Rates**: Configurable buy/sell rates stored in `platform_settings` table (keys: `usdt_buy_rate`, `usdt_sell_rate`)
-- **Routes**: `/fiat` (user INR exchange), `/wallet` (crypto deposits), `/admin/fiat-approvals` (admin panel)
-- **API**: `POST /api/fiat/buy`, `POST /api/fiat/sell`, `GET /api/fiat/history`, `GET /api/admin/fiat-transactions`, `POST /api/admin/fiat-transactions/:id/approve|reject|complete`
-- **Migration**: `supabase-migration-v8-fiat-transactions.sql` — must be run in Supabase SQL Editor
-
-### Spot Trading (300+ Pairs)
-- Expanded from 30 to 300+ trading pairs using Binance `!ticker@arr` WebSocket stream
-- Custom "Kuznex Pro Chart" header replaces Binance branding on TradingView charts
-
-## Recent Changes (2026-02-08)
-- Rebranded domain from kuznex.com to kuznex.in across all SEO, canonical URLs, OG tags, sitemap, robots.txt
-- Updated all support emails from support@kuznex.com to support@Kuznex.in (contact page, legal pages, meta tags)
-- Massive SEO keyword injection with 35+ India-focused crypto keywords
-- Added Contact Us system: public form (/contact) + admin portal (/admin/messages)
-- Created 5 legal pages: Privacy Policy, Terms, Risk Disclosure, AML Policy, TDS Compliance
-- Full SEO optimization: meta tags, OG tags, sitemap.xml, robots.txt for Indian crypto keywords
-- Updated Footer with working links to all legal pages, contact, and product routes
-- Added admin Messages nav link in dashboard
-- Added TDS (Tax Deducted at Source) compliance system per India VDA Section 194S
-- 1% TDS deduction on crypto-to-INR swaps and INR withdrawals
-- PAN card verification gating for sell/withdraw operations
-- Admin TDS reports page with date filtering and CSV export
-- TDS breakdown preview on swap and INR withdrawal UIs with tax disclaimer
-- Added Portfolio Analytics with daily_snapshots table and midnight UTC cron job
-- Built 3D glassmorphism Portfolio Card with vanilla-tilt.js on dashboard
-- Added /api/user/stats endpoint for 24h PnL, total deposits/withdrawals
-- Added /api/admin/user-stats endpoint for bulk user analytics
-- Enhanced admin users panel with Net Deposit, 24h Activity columns, Whale/Risk indicators
-- Added Fiat Buy/Sell USDT with admin approval workflow (fiat_transactions table, /fiat page, /admin/fiat-approvals)
-- Separated /wallet (crypto deposits) and /fiat (INR exchange) pages
-- Expanded spot trading to 300+ pairs with Binance !ticker@arr WebSocket
-- Hidden Binance branding from TradingView charts, added Kuznex Pro Chart header
+- **Binance WebSocket**: Real-time spot trading price data.
