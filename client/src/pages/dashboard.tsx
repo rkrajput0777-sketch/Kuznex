@@ -24,10 +24,12 @@ import {
   Vault,
   CreditCard,
   ArrowDownUp,
+  Bell,
 } from "lucide-react";
 import type { UserWallet, UserStats } from "@shared/schema";
 import kuznexLogo from "@assets/image_1770554564085.png";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { NotificationBell } from "@/components/notification-bell";
 
 const CURRENCY_LABELS: Record<string, string> = {
   INR: "Indian Rupee",
@@ -241,11 +243,18 @@ export default function Dashboard() {
                       Withdrawals
                     </Button>
                   </Link>
+                  <Link href="/admin/notifications">
+                    <Button variant="ghost" size="sm" data-testid="link-nav-admin-notifications">
+                      <Bell className="w-4 h-4 mr-2" />
+                      Notify
+                    </Button>
+                  </Link>
                 </>
               )}
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <NotificationBell />
               <span className="text-sm text-muted-foreground hidden sm:inline" data-testid="text-username">
                 {user.username}
               </span>

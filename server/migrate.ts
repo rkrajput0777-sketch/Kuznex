@@ -172,6 +172,30 @@ CREATE INDEX IF NOT EXISTS idx_fiat_transactions_user_id ON fiat_transactions(us
 CREATE INDEX IF NOT EXISTS idx_fiat_transactions_status ON fiat_transactions(status);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
+CREATE TABLE IF NOT EXISTS notifications (
+  id SERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'general',
+  created_by INTEGER NOT NULL REFERENCES users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS user_notifications (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  notification_id INTEGER NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
+  read BOOLEAN NOT NULL DEFAULT FALSE,
+  dismissed BOOLEAN NOT NULL DEFAULT FALSE,
+  read_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(user_id, notification_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_notifications_user ON user_notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_notifications_dismissed ON user_notifications(user_id, dismissed);
+CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(created_at);
+
 -- Seed default platform settings
 INSERT INTO platform_settings (key, value, updated_at)
 VALUES
@@ -191,6 +215,8 @@ ALTER TABLE daily_snapshots DISABLE ROW LEVEL SECURITY;
 ALTER TABLE contact_messages DISABLE ROW LEVEL SECURITY;
 ALTER TABLE fiat_transactions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE platform_settings DISABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications DISABLE ROW LEVEL SECURITY;
+ALTER TABLE user_notifications DISABLE ROW LEVEL SECURITY;
 `;
 
 function resolveSupabaseUrl(): string {
@@ -259,7 +285,7 @@ export async function runAutoMigration(): Promise<void> {
       console.log(`[Migration] Connected to PostgreSQL (${region}).`);
 
       await client.query(MIGRATION_SQL);
-      console.log("[Migration] All 11 tables and columns verified/created successfully.");
+      console.log("[Migration] All 13 tables and columns verified/created successfully.");
 
       const tablesResult = await client.query(`
         SELECT table_name FROM information_schema.tables 

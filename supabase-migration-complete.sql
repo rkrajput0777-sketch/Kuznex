@@ -226,5 +226,36 @@ ALTER TABLE fiat_transactions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE platform_settings DISABLE ROW LEVEL SECURITY;
 
 -- =============================================================================
--- DONE! All 11 tables created with indexes, columns, and default settings.
+-- NOTIFICATIONS SYSTEM (Tables 12 & 13)
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id SERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'general',
+  created_by INTEGER NOT NULL REFERENCES users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS user_notifications (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  notification_id INTEGER NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
+  read BOOLEAN NOT NULL DEFAULT FALSE,
+  dismissed BOOLEAN NOT NULL DEFAULT FALSE,
+  read_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(user_id, notification_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_notifications_user ON user_notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_notifications_dismissed ON user_notifications(user_id, dismissed);
+CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(created_at);
+
+ALTER TABLE notifications DISABLE ROW LEVEL SECURITY;
+ALTER TABLE user_notifications DISABLE ROW LEVEL SECURITY;
+
+-- =============================================================================
+-- DONE! All 13 tables created with indexes, columns, and default settings.
 -- =============================================================================

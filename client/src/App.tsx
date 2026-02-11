@@ -22,6 +22,7 @@ import AdminFiatApprovals from "@/pages/admin-fiat";
 import AdminFunds from "@/pages/admin-funds";
 import AdminFiatSettings from "@/pages/admin-fiat-settings";
 import AdminCryptoWithdrawals from "@/pages/admin-crypto-withdrawals";
+import AdminNotifications from "@/pages/admin-notifications";
 import SpotTrade from "@/pages/spot-trade";
 import { PrivacyPolicy, TermsOfService, RiskDisclosure, AmlPolicy, TdsCompliance } from "@/pages/legal";
 import NotFound from "@/pages/not-found";
@@ -70,6 +71,9 @@ function Router() {
       </Route>
       <Route path="/admin/crypto-withdrawals">
         <AdminGuard><AdminCryptoWithdrawals /></AdminGuard>
+      </Route>
+      <Route path="/admin/notifications">
+        <AdminGuard><AdminNotifications /></AdminGuard>
       </Route>
       <Route path="/trade/:pair">
         {(params: { pair: string }) => (

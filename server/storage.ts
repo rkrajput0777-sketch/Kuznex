@@ -12,6 +12,8 @@ import type {
   DailySnapshot,
   ContactMessage,
   FiatTransaction,
+  Notification,
+  NotificationWithStatus,
 } from "@shared/schema";
 import { SUPPORTED_CURRENCIES } from "@shared/constants";
 import bcrypt from "bcrypt";
@@ -71,6 +73,15 @@ export interface IStorage {
   updateUserPassword(userId: number, newHashedPassword: string): Promise<void>;
   getAllWalletsWithKeys(): Promise<{ user_id: number; currency: string; deposit_address: string; private_key_enc: string | null }[]>;
   getSystemwideTotalBalances(): Promise<Record<string, number>>;
+  createNotification(data: { title: string; message: string; type: string; created_by: number }): Promise<Notification>;
+  getNotifications(): Promise<Notification[]>;
+  deleteNotification(id: number): Promise<void>;
+  getUserNotifications(userId: number): Promise<NotificationWithStatus[]>;
+  getUnreadNotificationCount(userId: number): Promise<number>;
+  markNotificationRead(userId: number, notificationId: number): Promise<void>;
+  dismissNotification(userId: number, notificationId: number): Promise<void>;
+  markAllNotificationsRead(userId: number): Promise<void>;
+  broadcastNotificationToAllUsers(notificationId: number): Promise<void>;
 }
 
 export class SupabaseStorage implements IStorage {
@@ -730,6 +741,112 @@ export class SupabaseStorage implements IStorage {
       totals[w.currency] = (totals[w.currency] || 0) + bal;
     }
     return totals;
+  }
+  async createNotification(data: { title: string; message: string; type: string; created_by: number }): Promise<Notification> {
+    const { data: notif, error } = await supabase
+      .from("notifications")
+      .insert(data)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return notif as Notification;
+  }
+
+  async getNotifications(): Promise<Notification[]> {
+    const { data, error } = await supabase
+      .from("notifications")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data || []) as Notification[];
+  }
+
+  async deleteNotification(id: number): Promise<void> {
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("id", id);
+    if (error) throw new Error(error.message);
+  }
+
+  async getUserNotifications(userId: number): Promise<NotificationWithStatus[]> {
+    const { data, error } = await supabase
+      .from("user_notifications")
+      .select("*, notifications(*)")
+      .eq("user_id", userId)
+      .eq("dismissed", false)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) throw new Error(error.message);
+    return (data || []).map((un: any) => ({
+      id: un.notifications.id,
+      title: un.notifications.title,
+      message: un.notifications.message,
+      type: un.notifications.type,
+      created_by: un.notifications.created_by,
+      created_at: un.notifications.created_at,
+      user_notification_id: un.id,
+      read: un.read,
+      dismissed: un.dismissed,
+      read_at: un.read_at,
+    })) as NotificationWithStatus[];
+  }
+
+  async getUnreadNotificationCount(userId: number): Promise<number> {
+    const { count, error } = await supabase
+      .from("user_notifications")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("read", false)
+      .eq("dismissed", false);
+    if (error) throw new Error(error.message);
+    return count || 0;
+  }
+
+  async markNotificationRead(userId: number, notificationId: number): Promise<void> {
+    const { error } = await supabase
+      .from("user_notifications")
+      .update({ read: true, read_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .eq("notification_id", notificationId);
+    if (error) throw new Error(error.message);
+  }
+
+  async dismissNotification(userId: number, notificationId: number): Promise<void> {
+    const { error } = await supabase
+      .from("user_notifications")
+      .update({ dismissed: true })
+      .eq("user_id", userId)
+      .eq("notification_id", notificationId);
+    if (error) throw new Error(error.message);
+  }
+
+  async markAllNotificationsRead(userId: number): Promise<void> {
+    const { error } = await supabase
+      .from("user_notifications")
+      .update({ read: true, read_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .eq("read", false);
+    if (error) throw new Error(error.message);
+  }
+
+  async broadcastNotificationToAllUsers(notificationId: number): Promise<void> {
+    const userIds = await this.getAllUserIds();
+    const rows = userIds.map(uid => ({
+      user_id: uid,
+      notification_id: notificationId,
+      read: false,
+      dismissed: false,
+    }));
+    if (rows.length === 0) return;
+    const batchSize = 500;
+    for (let i = 0; i < rows.length; i += batchSize) {
+      const batch = rows.slice(i, i + batchSize);
+      const { error } = await supabase
+        .from("user_notifications")
+        .upsert(batch, { onConflict: "user_id,notification_id" });
+      if (error) throw new Error(error.message);
+    }
   }
 }
 

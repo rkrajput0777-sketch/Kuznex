@@ -227,3 +227,35 @@ export const adminRateSettingsSchema = z.object({
   usdt_buy_rate: z.string().min(1, "Buy rate is required"),
   usdt_sell_rate: z.string().min(1, "Sell rate is required"),
 });
+
+export interface Notification {
+  id: number;
+  title: string;
+  message: string;
+  type: string;
+  created_by: number;
+  created_at: string;
+}
+
+export interface UserNotification {
+  id: number;
+  user_id: number;
+  notification_id: number;
+  read: boolean;
+  dismissed: boolean;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface NotificationWithStatus extends Notification {
+  user_notification_id: number;
+  read: boolean;
+  dismissed: boolean;
+  read_at: string | null;
+}
+
+export const createNotificationSchema = z.object({
+  title: z.string().min(1, "Title is required").max(200),
+  message: z.string().min(1, "Message is required").max(2000),
+  type: z.enum(["feature", "security", "maintenance", "general"]),
+});
