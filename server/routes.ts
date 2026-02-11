@@ -149,9 +149,9 @@ async function analyzeDocumentWithGemini(filePath: string, docType: string): Pro
   }
 }
 
-async function analyzeImageBuffer(buffer: Buffer, mimeType: string, docType: string): Promise<any> {
+async function extractDocumentNumber(buffer: Buffer, mimeType: string, docType: string): Promise<{ number: string | null; name: string | null }> {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return { valid: false, reason: "Gemini API key not configured", extracted_data: {} };
+  if (!apiKey) return { number: null, name: null };
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
@@ -161,33 +161,15 @@ async function analyzeImageBuffer(buffer: Buffer, mimeType: string, docType: str
 
     let prompt = "";
     if (docType === "Aadhaar_Front" || docType === "aadhaar_front") {
-      prompt = `Analyze this image strictly. Is this a CLEAR and ORIGINAL Indian Aadhaar Card (front side)?
-- Check for blurriness. If the text is not clearly readable, mark as invalid with reason "Blurry image detected. Please upload a clearer photo."
-- Check if it looks like a photocopy, xerox copy, or screen capture/screenshot. If yes, mark as invalid with reason "Please upload original card, not a photocopy or screenshot."
-- Check if it appears to be a photo of a screen/monitor. If yes, mark as invalid with reason "Screen capture detected. Please photograph the original document."
-- Extract the Name and last 4 digits of Aadhaar number if visible.
-- Respond ONLY in JSON format: { "valid": true/false, "reason": "explanation", "extracted_data": { "name": "...", "aadhaarLast4": "..." } }`;
+      prompt = `You are an OCR assistant. Extract the 12-digit Aadhaar Number and the Name from this image if visible. Do your best even if the image is not perfect. Respond ONLY in JSON format: { "number": "1234 5678 9012" or null, "name": "Full Name" or null }`;
+    } else if (docType === "aadhaar_back") {
+      prompt = `You are an OCR assistant. Extract the 12-digit Aadhaar Number from the back side of this Aadhaar card if visible. Respond ONLY in JSON format: { "number": "1234 5678 9012" or null, "name": null }`;
     } else if (docType === "PAN" || docType === "pan_card") {
-      prompt = `Analyze this image strictly. Is this a CLEAR and ORIGINAL Indian PAN Card?
-- Check for blurriness. If the text is not clearly readable, mark as invalid with reason "Blurry image detected. Please upload a clearer photo."
-- Check if it looks like a photocopy, xerox copy, or screen capture/screenshot. If yes, mark as invalid with reason "Please upload original PAN card, not a photocopy or screenshot."
-- Check if it appears to be a photo of a screen/monitor. If yes, mark as invalid with reason "Screen capture detected. Please photograph the original document."
-- Extract the PAN number (format: ABCDE1234F) and Name.
-- Respond ONLY in JSON format: { "valid": true/false, "reason": "explanation", "extracted_data": { "panNumber": "...", "name": "..." } }`;
-    } else if (docType === "Bank_Proof") {
-      prompt = `Analyze this image strictly. Is this a CLEAR and ORIGINAL Indian bank proof document (bank statement, passbook, or cancelled cheque)?
-- Check for blurriness. If the text is not clearly readable, mark as invalid with reason "Blurry image detected. Please upload a clearer photo."
-- Check if it looks like a photocopy or screen capture. If yes, mark as invalid with reason "Please upload original document, not a photocopy or screenshot."
-- Extract the account holder name and bank name if visible.
-- Respond ONLY in JSON format: { "valid": true/false, "reason": "explanation", "extracted_data": { "name": "...", "bankName": "..." } }`;
+      prompt = `You are an OCR assistant. Extract the 10-character PAN Number (format: ABCDE1234F) and the Name from this image if visible. Do your best even if the image is not perfect. Respond ONLY in JSON format: { "number": "ABCDE1234F" or null, "name": "Full Name" or null }`;
     } else if (docType === "selfie") {
-      prompt = `Analyze this image strictly. Is this a REAL, LIVE selfie of a human face?
-- Check if it is a photo of a photo (printed or on screen). If yes, mark as invalid with reason "This appears to be a photo of a photo. Please take a live selfie."
-- Check for blurriness. If the face is not clear, mark as invalid with reason "Blurry image. Please ensure good lighting and hold steady."
-- Check if a real human face is clearly visible. If not, mark as invalid with reason "No clear face detected. Please face the camera directly."
-- Respond ONLY in JSON format: { "valid": true/false, "reason": "explanation", "extracted_data": { "faceDetected": true/false, "imageQuality": "good/poor/blurry" } }`;
+      return { number: null, name: null };
     } else {
-      return { valid: false, reason: "Unknown document type", extracted_data: {} };
+      return { number: null, name: null };
     }
 
     const result = await model.generateContent([
@@ -198,11 +180,12 @@ async function analyzeImageBuffer(buffer: Buffer, mimeType: string, docType: str
     const responseText = result.response.text();
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
+      const parsed = JSON.parse(jsonMatch[0]);
+      return { number: parsed.number || null, name: parsed.name || null };
     }
-    return { valid: false, reason: "Could not parse AI response", extracted_data: {} };
+    return { number: null, name: null };
   } catch (error: any) {
-    return { valid: false, reason: error.message, extracted_data: {} };
+    return { number: null, name: null };
   }
 }
 
@@ -892,16 +875,13 @@ export async function registerRoutes(
       const file = req.file;
       const docType = req.body.documentType;
       if (!file) {
-        return res.status(400).json({ valid: false, reason: "No image file provided" });
-      }
-      if (!docType || !["Aadhaar_Front", "aadhaar_front", "aadhaar_back", "PAN", "pan_card", "Bank_Proof", "selfie"].includes(docType)) {
-        return res.status(400).json({ valid: false, reason: "Invalid document type" });
+        return res.json({ success: true, number: null, name: null });
       }
 
-      const result = await analyzeImageBuffer(file.buffer, file.mimetype, docType);
-      res.json(result);
+      const result = await extractDocumentNumber(file.buffer, file.mimetype, docType || "unknown");
+      res.json({ success: true, number: result.number, name: result.name });
     } catch (error: any) {
-      res.status(500).json({ valid: false, reason: error.message || "Verification failed" });
+      res.json({ success: true, number: null, name: null });
     }
   });
 
@@ -935,12 +915,23 @@ export async function registerRoutes(
           return res.status(400).json({ message: "All documents required: aadhaar_front, aadhaar_back, pan_card, selfie" });
         }
 
+        let userDocNumbers: any = {};
+        try {
+          if (req.body.docNumbers) {
+            userDocNumbers = JSON.parse(req.body.docNumbers);
+          }
+        } catch {}
+
         const kycData: any = {
           aadhaarFrontPath: files.aadhaar_front[0].path,
           aadhaarBackPath: files.aadhaar_back[0].path,
           panCardPath: files.pan_card[0].path,
           selfiePath: files.selfie[0].path,
           submittedAt: new Date().toISOString(),
+          userEnteredNumbers: {
+            aadhaarNumber: userDocNumbers.aadhaar_front || userDocNumbers.aadhaar_back || "",
+            panNumber: userDocNumbers.pan_card || "",
+          },
           aiAnalysis: {},
         };
 

@@ -195,6 +195,21 @@ export default function AdminKycReview() {
                         })}
                       </div>
 
+                      {kycUser.kycData?.userEnteredNumbers && (
+                        <div className="p-3 rounded-md bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800">
+                          <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-1">User-Entered / AI-Extracted Numbers</p>
+                          {kycUser.kycData.userEnteredNumbers.aadhaarNumber && (
+                            <p className="text-xs text-blue-600 dark:text-blue-400">Aadhaar: <span className="font-mono font-medium">{kycUser.kycData.userEnteredNumbers.aadhaarNumber}</span></p>
+                          )}
+                          {kycUser.kycData.userEnteredNumbers.panNumber && (
+                            <p className="text-xs text-blue-600 dark:text-blue-400">PAN: <span className="font-mono font-medium">{kycUser.kycData.userEnteredNumbers.panNumber}</span></p>
+                          )}
+                          {!kycUser.kycData.userEnteredNumbers.aadhaarNumber && !kycUser.kycData.userEnteredNumbers.panNumber && (
+                            <p className="text-xs text-muted-foreground">No numbers provided by user</p>
+                          )}
+                        </div>
+                      )}
+
                       <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 text-xs text-muted-foreground">
                         <Info className="w-3 h-3 shrink-0" />
                         <span>Extracted data (Name, PAN, Aadhaar) will be saved permanently. Document images will be auto-deleted after your decision.</span>

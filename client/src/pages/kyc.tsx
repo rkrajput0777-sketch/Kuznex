@@ -5,6 +5,8 @@ import { queryClient } from "@/lib/queryClient";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Shield,
   Upload,
@@ -18,6 +20,7 @@ import {
   FileImage,
   User,
   Video,
+  ScanLine,
 } from "lucide-react";
 
 const STEPS = ["Aadhaar Front", "Aadhaar Back", "PAN Card", "Live Selfie"];
@@ -50,7 +53,12 @@ export default function KycPage() {
     selfie: null,
   });
   const [previews, setPreviews] = useState<{ [key: string]: string }>({});
-  const [verificationStatus, setVerificationStatus] = useState<{ [key: string]: { verified: boolean; reason?: string; loading?: boolean; extractedData?: any } }>({});
+  const [scanStatus, setScanStatus] = useState<{ [key: string]: { scanning: boolean; scanned: boolean; number?: string | null; name?: string | null } }>({});
+  const [docNumbers, setDocNumbers] = useState<{ [key: string]: string }>({
+    aadhaar_front: "",
+    aadhaar_back: "",
+    pan_card: "",
+  });
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -73,6 +81,7 @@ export default function KycPage() {
       if (files.aadhaar_back) formData.append("aadhaar_back", files.aadhaar_back);
       if (files.pan_card) formData.append("pan_card", files.pan_card);
       if (files.selfie) formData.append("selfie", files.selfie);
+      formData.append("docNumbers", JSON.stringify(docNumbers));
 
       const res = await fetch("/api/kyc/submit", {
         method: "POST",
@@ -91,21 +100,22 @@ export default function KycPage() {
     },
   });
 
-  const verifyImage = async (file: File, docType: string): Promise<{ valid: boolean; reason: string; extracted_data?: any }> => {
+  const scanDocument = async (file: File, docType: string): Promise<{ number: string | null; name: string | null }> => {
     const formData = new FormData();
     formData.append("image", file);
     formData.append("documentType", docType);
 
-    const res = await fetch("/api/kyc/verify-image", {
-      method: "POST",
-      body: formData,
-      credentials: "include",
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      return { valid: false, reason: errData.reason || "Verification service unavailable. Please try again." };
+    try {
+      const res = await fetch("/api/kyc/verify-image", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      return { number: data.number || null, name: data.name || null };
+    } catch {
+      return { number: null, name: null };
     }
-    return res.json();
   };
 
   const handleFileSelect = async (file: File, fieldKey: string) => {
@@ -114,43 +124,35 @@ export default function KycPage() {
     reader.readAsDataURL(file);
 
     setFiles((prev) => ({ ...prev, [fieldKey]: file }));
-    setVerificationStatus((prev) => ({
-      ...prev,
-      [fieldKey]: { verified: false, loading: true },
-    }));
 
-    try {
-      const docType = DOC_TYPE_MAP[fieldKey];
-      const result = await verifyImage(file, docType);
-
-      if (result.valid) {
-        setVerificationStatus((prev) => ({
-          ...prev,
-          [fieldKey]: { verified: true, reason: result.reason, extractedData: result.extracted_data },
-        }));
-      } else {
-        setVerificationStatus((prev) => ({
-          ...prev,
-          [fieldKey]: { verified: false, reason: result.reason },
-        }));
-        setFiles((prev) => ({ ...prev, [fieldKey]: null }));
-        setPreviews((prev) => {
-          const next = { ...prev };
-          delete next[fieldKey];
-          return next;
-        });
-      }
-    } catch (err: any) {
-      setVerificationStatus((prev) => ({
+    if (fieldKey !== "selfie") {
+      setScanStatus((prev) => ({
         ...prev,
-        [fieldKey]: { verified: false, reason: "Verification failed. Please try again." },
+        [fieldKey]: { scanning: true, scanned: false },
       }));
-      setFiles((prev) => ({ ...prev, [fieldKey]: null }));
-      setPreviews((prev) => {
-        const next = { ...prev };
-        delete next[fieldKey];
-        return next;
-      });
+
+      const docType = DOC_TYPE_MAP[fieldKey];
+      const startTime = Date.now();
+      const result = await scanDocument(file, docType);
+      const elapsed = Date.now() - startTime;
+      const minDelay = 2500;
+      if (elapsed < minDelay) {
+        await new Promise(resolve => setTimeout(resolve, minDelay - elapsed));
+      }
+
+      if (result.number) {
+        setDocNumbers((prev) => ({ ...prev, [fieldKey]: result.number! }));
+      }
+
+      setScanStatus((prev) => ({
+        ...prev,
+        [fieldKey]: { scanning: false, scanned: true, number: result.number, name: result.name },
+      }));
+    } else {
+      setScanStatus((prev) => ({
+        ...prev,
+        selfie: { scanning: false, scanned: true },
+      }));
     }
   };
 
@@ -267,10 +269,9 @@ export default function KycPage() {
   const currentField = fieldKeys[step];
 
   const allFilesReady = files.aadhaar_front && files.aadhaar_back && files.pan_card && files.selfie;
-  const allVerified = fieldKeys.every(key => verificationStatus[key]?.verified);
 
   const handleSubmit = () => {
-    if (allFilesReady && allVerified) {
+    if (allFilesReady) {
       submitMutation.mutate();
     }
   };
@@ -282,51 +283,66 @@ export default function KycPage() {
       delete next[fieldKey];
       return next;
     });
-    setVerificationStatus((prev) => {
+    setScanStatus((prev) => {
       const next = { ...prev };
       delete next[fieldKey];
       return next;
     });
+    if (fieldKey !== "selfie") {
+      setDocNumbers((prev) => ({ ...prev, [fieldKey]: "" }));
+    }
   };
 
-  const renderVerificationBadge = (fieldKey: string) => {
-    const status = verificationStatus[fieldKey];
+  const renderScanBadge = (fieldKey: string) => {
+    const status = scanStatus[fieldKey];
     if (!status) return null;
 
-    if (status.loading) {
+    if (status.scanning) {
       return (
-        <div className="flex items-center gap-2 mt-2 p-2 rounded-md bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-sm" data-testid={`status-verifying-${fieldKey}`}>
-          <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-          <span>Verifying with AI...</span>
+        <div className="flex items-center gap-2 mt-3 p-3 rounded-md bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-sm" data-testid={`status-scanning-${fieldKey}`}>
+          <ScanLine className="w-4 h-4 animate-pulse shrink-0" />
+          <span>Scanning Document...</span>
         </div>
       );
     }
 
-    if (status.verified) {
+    if (status.scanned) {
       return (
-        <div className="mt-2 p-2 rounded-md bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 text-sm" data-testid={`status-valid-${fieldKey}`}>
+        <div className="mt-3 p-3 rounded-md bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 text-sm" data-testid={`status-scanned-${fieldKey}`}>
           <div className="flex items-center gap-2">
             <CheckCircle className="w-4 h-4 shrink-0" />
-            <span>Document verified</span>
+            <span>Document Scanned Successfully. Please confirm details.</span>
           </div>
-          {status.extractedData && (
-            <div className="mt-1 text-xs space-y-0.5">
-              {status.extractedData.name && <p>Name: {status.extractedData.name}</p>}
-              {status.extractedData.panNumber && <p>PAN: {status.extractedData.panNumber}</p>}
-              {status.extractedData.aadhaarLast4 && <p>Aadhaar: ****{status.extractedData.aadhaarLast4}</p>}
-              {status.extractedData.faceDetected && <p>Face detected</p>}
-            </div>
+          {status.name && (
+            <p className="mt-1 text-xs">Name detected: <span className="font-medium">{status.name}</span></p>
+          )}
+          {status.number && (
+            <p className="mt-0.5 text-xs">Number auto-filled below</p>
           )}
         </div>
       );
     }
 
+    return null;
+  };
+
+  const renderDocNumberInput = (fieldKey: string) => {
+    if (fieldKey === "selfie") return null;
+    if (!files[fieldKey]) return null;
+
+    const label = fieldKey === "pan_card" ? "PAN Number" : "Aadhaar Number";
+    const placeholder = fieldKey === "pan_card" ? "ABCDE1234F" : "1234 5678 9012";
+
     return (
-      <div className="mt-2 p-2 rounded-md bg-destructive/10 text-destructive text-sm" data-testid={`status-invalid-${fieldKey}`}>
-        <div className="flex items-center gap-2">
-          <XCircle className="w-4 h-4 shrink-0" />
-          <span>{status.reason || "Document rejected"}</span>
-        </div>
+      <div className="mt-4 space-y-2">
+        <Label className="text-sm text-muted-foreground">{label} (auto-filled by AI or type manually)</Label>
+        <Input
+          value={docNumbers[fieldKey] || ""}
+          onChange={(e) => setDocNumbers((prev) => ({ ...prev, [fieldKey]: e.target.value }))}
+          placeholder={placeholder}
+          className="font-mono"
+          data-testid={`input-doc-number-${fieldKey}`}
+        />
       </div>
     );
   };
@@ -373,16 +389,16 @@ export default function KycPage() {
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
                   i === step
                     ? "bg-primary text-primary-foreground"
-                    : verificationStatus[fieldKeys[i]]?.verified
+                    : files[fieldKeys[i]]
                     ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300"
                     : "bg-muted text-muted-foreground"
                 }`}
                 data-testid={`button-step-${i}`}
               >
-                {verificationStatus[fieldKeys[i]]?.verified ? <CheckCircle className="w-4 h-4" /> : i + 1}
+                {files[fieldKeys[i]] ? <CheckCircle className="w-4 h-4" /> : i + 1}
               </button>
               {i < STEPS.length - 1 && (
-                <div className={`flex-1 h-0.5 ${verificationStatus[fieldKeys[i]]?.verified ? "bg-green-300 dark:bg-green-700" : "bg-muted"}`} />
+                <div className={`flex-1 h-0.5 ${files[fieldKeys[i]] ? "bg-green-300 dark:bg-green-700" : "bg-muted"}`} />
               )}
             </div>
           ))}
@@ -391,10 +407,10 @@ export default function KycPage() {
         <Card className="p-6">
           <h2 className="text-lg font-semibold text-foreground mb-1" data-testid="text-step-title">{STEPS[step]}</h2>
           <p className="text-sm text-muted-foreground mb-6">
-            {step === 0 && "Upload a clear, original photo of the front side of your Aadhaar card. No photocopies or screenshots."}
-            {step === 1 && "Upload a clear, original photo of the back side of your Aadhaar card. No photocopies or screenshots."}
-            {step === 2 && "Upload a clear, original photo of your PAN card. No photocopies or screenshots."}
-            {step === 3 && "Take a live selfie using your camera. File uploads are not allowed for selfie verification."}
+            {step === 0 && "Upload a photo of the front side of your Aadhaar card. Our AI will automatically scan and extract the details."}
+            {step === 1 && "Upload a photo of the back side of your Aadhaar card."}
+            {step === 2 && "Upload a photo of your PAN card. Our AI will auto-detect your PAN number."}
+            {step === 3 && "Take a live selfie using your camera for identity verification."}
           </p>
 
           {step < 3 ? (
@@ -407,7 +423,7 @@ export default function KycPage() {
                     className="w-full max-h-64 object-contain rounded-md border border-border"
                     data-testid={`img-preview-${currentField}`}
                   />
-                  {!verificationStatus[currentField]?.loading && (
+                  {!scanStatus[currentField]?.scanning && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -418,13 +434,14 @@ export default function KycPage() {
                       Remove
                     </Button>
                   )}
-                  {renderVerificationBadge(currentField)}
+                  {renderScanBadge(currentField)}
+                  {renderDocNumberInput(currentField)}
                 </div>
               ) : (
                 <label className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-md p-8 cursor-pointer hover-elevate transition-colors">
                   <FileImage className="w-12 h-12 text-muted-foreground mb-3" />
                   <p className="text-sm font-medium text-foreground">Click to upload</p>
-                  <p className="text-xs text-muted-foreground mt-1">JPG, PNG or WebP (max 10MB) - Original documents only</p>
+                  <p className="text-xs text-muted-foreground mt-1">JPG, PNG or WebP (max 10MB)</p>
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
@@ -472,18 +489,21 @@ export default function KycPage() {
                     className="w-full max-h-64 object-contain rounded-md border border-border"
                     data-testid="img-preview-selfie"
                   />
-                  {!verificationStatus.selfie?.loading && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="absolute top-2 right-2"
-                      onClick={() => removeFile("selfie")}
-                      data-testid="button-remove-selfie"
-                    >
-                      Remove
-                    </Button>
-                  )}
-                  {renderVerificationBadge("selfie")}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="absolute top-2 right-2"
+                    onClick={() => removeFile("selfie")}
+                    data-testid="button-remove-selfie"
+                  >
+                    Remove
+                  </Button>
+                  <div className="mt-3 p-3 rounded-md bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 text-sm" data-testid="status-scanned-selfie">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 shrink-0" />
+                      <span>Selfie captured successfully</span>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col items-center">
@@ -494,7 +514,7 @@ export default function KycPage() {
                   >
                     <Video className="w-12 h-12 text-muted-foreground mb-3" />
                     <p className="text-sm font-medium text-foreground">Open Camera for Live Selfie</p>
-                    <p className="text-xs text-muted-foreground mt-1">Only live camera capture is allowed - no file uploads</p>
+                    <p className="text-xs text-muted-foreground mt-1">Only live camera capture is allowed</p>
                   </button>
                   {cameraError && (
                     <div className="mt-3 p-2 rounded-md bg-destructive/10 text-destructive text-sm w-full" data-testid="text-camera-error">
@@ -523,7 +543,7 @@ export default function KycPage() {
             {step < 3 ? (
               <Button
                 onClick={() => setStep(step + 1)}
-                disabled={!verificationStatus[currentField]?.verified}
+                disabled={!files[currentField]}
                 data-testid="button-next-step"
               >
                 Next
@@ -532,7 +552,7 @@ export default function KycPage() {
             ) : (
               <Button
                 onClick={handleSubmit}
-                disabled={!allFilesReady || !allVerified || submitMutation.isPending}
+                disabled={!allFilesReady || submitMutation.isPending}
                 data-testid="button-submit-kyc"
               >
                 {submitMutation.isPending ? (
@@ -568,15 +588,15 @@ export default function KycPage() {
             <div
               key={key}
               className={`text-center p-3 rounded-md ${
-                verificationStatus[key]?.verified
+                files[key]
                   ? "bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800"
                   : "bg-muted/30 border border-border"
               }`}
               data-testid={`status-doc-${key}`}
             >
-              {verificationStatus[key]?.verified ? (
+              {files[key] ? (
                 <CheckCircle className="w-5 h-5 text-green-600 mx-auto mb-1" />
-              ) : verificationStatus[key]?.loading ? (
+              ) : scanStatus[key]?.scanning ? (
                 <Loader2 className="w-5 h-5 text-blue-600 mx-auto mb-1 animate-spin" />
               ) : (
                 <User className="w-5 h-5 text-muted-foreground mx-auto mb-1" />
