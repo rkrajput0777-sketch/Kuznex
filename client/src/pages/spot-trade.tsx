@@ -21,6 +21,7 @@ import {
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { UserWallet, SpotOrder } from "@shared/schema";
+import kuznexLogo from "@assets/image_1770554564085.png";
 
 interface PairData {
   symbol: string;
@@ -408,12 +409,11 @@ export default function SpotTrade({ pair: initialPair }: { pair: string }) {
               data-testid="chart-tradingview"
             />
             <div
-              className="absolute bottom-0 left-0 z-50 flex items-center gap-1.5 bg-background"
-              style={{ minWidth: "140px", height: "32px", paddingLeft: "8px", paddingRight: "12px" }}
+              className="absolute bottom-0 left-0 z-50 flex items-center bg-background"
+              style={{ width: "200px", height: "40px", paddingLeft: "6px" }}
               data-testid="overlay-kuznex-chart-brand"
             >
-              <img src="/favicon.png" alt="Kuznex" className="w-5 h-5" />
-              <span className="text-xs font-bold text-primary tracking-wide">Kuznex</span>
+              <img src={kuznexLogo} alt="Kuznex" className="h-6 w-auto" />
             </div>
           </div>
 
