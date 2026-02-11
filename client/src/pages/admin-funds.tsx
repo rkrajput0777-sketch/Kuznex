@@ -14,6 +14,10 @@ import {
   Wallet,
   Database,
   Shield,
+  Key,
+  Eye,
+  EyeOff,
+  CheckCircle2,
 } from "lucide-react";
 import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -30,6 +34,32 @@ export default function AdminFunds() {
   const { data: user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [coldWalletAddress, setColdWalletAddress] = useState("");
+  const [newMasterKey, setNewMasterKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
+
+  const { data: masterKeyInfo, isLoading: masterKeyLoading } = useQuery<{ configured: boolean; address: string | null }>({
+    queryKey: ["/api/admin/master-key-info"],
+    enabled: !!user?.isSuperAdmin,
+  });
+
+  const updateKeyMutation = useMutation({
+    mutationFn: async (key: string) => {
+      const res = await apiRequest("POST", "/api/admin/update-master-key", { newKey: key });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/master-key-info"] });
+      setNewMasterKey("");
+      setShowKey(false);
+      toast({
+        title: "Master Key Updated",
+        description: `New wallet address: ${data.address}`,
+      });
+    },
+    onError: (err: any) => {
+      toast({ title: "Update failed", description: err.message, variant: "destructive" });
+    },
+  });
 
   const { data: fundOverview, isLoading: fundsLoading } = useQuery<FundOverview>({
     queryKey: ["/api/admin/fund-overview"],
@@ -132,6 +162,79 @@ export default function AdminFunds() {
                 </div>
               </Card>
             </div>
+
+            <Card className="p-6 border-primary/30">
+              <div className="flex items-center gap-2 mb-4">
+                <Key className="w-5 h-5 text-primary" />
+                <h3 className="font-semibold text-foreground">Master Private Key</h3>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Status</span>
+                  {masterKeyLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : masterKeyInfo?.configured ? (
+                    <Badge variant="default" data-testid="badge-master-key-status">
+                      <CheckCircle2 className="w-3 h-3 mr-1" />Configured
+                    </Badge>
+                  ) : (
+                    <Badge variant="destructive" data-testid="badge-master-key-status">Not Set</Badge>
+                  )}
+                </div>
+
+                {masterKeyInfo?.address && (
+                  <div className="space-y-1">
+                    <span className="text-sm text-muted-foreground">Current Wallet Address</span>
+                    <p className="font-mono text-xs break-all text-foreground" data-testid="text-master-wallet-address">
+                      {masterKeyInfo.address}
+                    </p>
+                  </div>
+                )}
+
+                <div className="pt-2 border-t border-border/50 space-y-3">
+                  <Label className="text-sm text-muted-foreground">Change Master Private Key</Label>
+                  <div className="relative">
+                    <Input
+                      type={showKey ? "text" : "password"}
+                      placeholder="Enter new private key (0x...)"
+                      value={newMasterKey}
+                      onChange={e => setNewMasterKey(e.target.value)}
+                      className="font-mono text-xs pr-10"
+                      data-testid="input-new-master-key"
+                    />
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                      onClick={() => setShowKey(!showKey)}
+                      data-testid="button-toggle-key-visibility"
+                    >
+                      {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                  <Button
+                    className="w-full"
+                    onClick={() => {
+                      if (confirm("Are you sure you want to change the Master Private Key? This will affect all crypto operations (withdrawals, sweeps).")) {
+                        updateKeyMutation.mutate(newMasterKey);
+                      }
+                    }}
+                    disabled={updateKeyMutation.isPending || !newMasterKey || newMasterKey.trim().length < 20}
+                    data-testid="button-update-master-key"
+                  >
+                    {updateKeyMutation.isPending ? (
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Updating...</>
+                    ) : (
+                      <><Key className="w-4 h-4 mr-2" />Update Master Key</>
+                    )}
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    This updates the key for the current server session. To make it permanent, also update the MASTER_PRIVATE_KEY in your environment secrets.
+                  </p>
+                </div>
+              </div>
+            </Card>
 
             {fundOverview?.sampleOnChainBalances && Object.keys(fundOverview.sampleOnChainBalances).length > 0 && (
               <Card className="p-6">

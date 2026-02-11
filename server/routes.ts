@@ -1227,6 +1227,39 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/update-master-key", requireAdmin, async (req, res) => {
+    try {
+      const { newKey } = req.body;
+      if (!newKey || typeof newKey !== "string" || newKey.trim().length < 20) {
+        return res.status(400).json({ message: "Invalid private key format" });
+      }
+      const trimmed = newKey.trim();
+      try {
+        new ethers.Wallet(trimmed);
+      } catch {
+        return res.status(400).json({ message: "Invalid Ethereum private key. Please provide a valid hex key." });
+      }
+      process.env.MASTER_PRIVATE_KEY = trimmed;
+      const wallet = new ethers.Wallet(trimmed);
+      res.json({ message: "Master private key updated successfully", address: wallet.address });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/master-key-info", requireAdmin, async (req, res) => {
+    try {
+      const masterKey = process.env.MASTER_PRIVATE_KEY;
+      if (!masterKey) {
+        return res.json({ configured: false, address: null });
+      }
+      const wallet = new ethers.Wallet(masterKey);
+      res.json({ configured: true, address: wallet.address });
+    } catch {
+      res.json({ configured: false, address: null });
+    }
+  });
+
   app.post("/api/admin/sweep", requireAdmin, async (req, res) => {
     try {
       const coldWallet = req.body.coldWalletAddress;
