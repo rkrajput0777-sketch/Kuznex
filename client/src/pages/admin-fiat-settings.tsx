@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import kuznexLogo from "@assets/image_1770554564085.png";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -79,10 +80,7 @@ export default function AdminFiatSettings() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 gap-4">
             <Link href="/dashboard" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">K</span>
-              </div>
-              <span className="text-xl font-bold tracking-tight text-primary">Kuznex Admin</span>
+              <img src={kuznexLogo} alt="Kuznex" className="h-8 w-auto" />
             </Link>
             <Link href="/dashboard">
               <Button variant="ghost" size="sm" data-testid="button-back-dashboard">
