@@ -320,3 +320,13 @@
     offset-distance: 100%;
   }
 }
+
+.tradingview-widget-container .tradingview-widget-copyright,
+.tradingview-widget-container a[href*="tradingview.com"],
+.tradingview-widget-container div[style*="display: flex"] > a {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+}

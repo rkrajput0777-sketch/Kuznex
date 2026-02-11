@@ -238,6 +238,13 @@ export default function Deposit() {
         </div>
       </nav>
 
+      <div className="md:hidden flex items-center gap-1 px-3 py-2 border-b border-border overflow-x-auto bg-background">
+        <Link href="/dashboard"><Button variant="ghost" size="sm" data-testid="link-mobile-wallet"><Wallet className="w-4 h-4 mr-1" />Wallet</Button></Link>
+        <Link href="/swap"><Button variant="ghost" size="sm" data-testid="link-mobile-swap"><ArrowLeftRight className="w-4 h-4 mr-1" />Swap</Button></Link>
+        <Link href="/deposit"><Button variant="secondary" size="sm" data-testid="link-mobile-crypto"><Download className="w-4 h-4 mr-1" />Crypto</Button></Link>
+        <Link href="/fiat"><Button variant="ghost" size="sm" data-testid="link-mobile-fiat"><Upload className="w-4 h-4 mr-1" />Fiat</Button></Link>
+      </div>
+
       <main className="max-w-2xl mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold text-foreground mb-6" data-testid="text-deposit-title">Deposit & Withdraw</h1>
 

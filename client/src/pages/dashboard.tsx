@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useAuth, useLogout } from "@/lib/auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
@@ -25,6 +25,9 @@ import {
   CreditCard,
   ArrowDownUp,
   Bell,
+  Menu,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import type { UserWallet, UserStats } from "@shared/schema";
 import kuznexLogo from "@assets/image_1770554564085.png";
@@ -43,6 +46,7 @@ export default function Dashboard() {
   const { data: user, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const logout = useLogout();
+  const [showMobileAdmin, setShowMobileAdmin] = useState(false);
 
   const { data: wallets, isLoading: walletsLoading } = useQuery<UserWallet[]>({
     queryKey: ["/api/wallet"],
@@ -264,9 +268,9 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="md:hidden flex items-center gap-1 pb-3 overflow-x-auto">
+          <div className="md:hidden flex items-center gap-1 pb-2 overflow-x-auto">
             <Link href="/dashboard">
-              <Button variant="ghost" size="sm"><Wallet className="w-4 h-4 mr-1" /> Wallet</Button>
+              <Button variant="secondary" size="sm"><Wallet className="w-4 h-4 mr-1" /> Wallet</Button>
             </Link>
             <Link href="/trade/BTCUSDT">
               <Button variant="ghost" size="sm"><BarChart3 className="w-4 h-4 mr-1" /> Trade</Button>
@@ -280,7 +284,26 @@ export default function Dashboard() {
             <Link href="/fiat">
               <Button variant="ghost" size="sm"><Upload className="w-4 h-4 mr-1" /> Fiat</Button>
             </Link>
+            {user.isSuperAdmin && (
+              <Button variant="ghost" size="sm" onClick={() => setShowMobileAdmin(!showMobileAdmin)} data-testid="button-toggle-mobile-admin">
+                <Settings className="w-4 h-4 mr-1" /> Admin {showMobileAdmin ? <ChevronUp className="w-3 h-3 ml-1" /> : <ChevronDown className="w-3 h-3 ml-1" />}
+              </Button>
+            )}
           </div>
+          {user.isSuperAdmin && showMobileAdmin && (
+            <div className="md:hidden grid grid-cols-3 gap-1 px-2 pb-2">
+              <Link href="/admin/kyc-review"><Button variant="ghost" size="sm" className="w-full text-xs justify-start" data-testid="link-mobile-admin-kyc"><UserCheck className="w-3.5 h-3.5 mr-1" />KYC</Button></Link>
+              <Link href="/admin/users"><Button variant="ghost" size="sm" className="w-full text-xs justify-start" data-testid="link-mobile-admin-users"><Users className="w-3.5 h-3.5 mr-1" />Users</Button></Link>
+              <Link href="/admin/tds-reports"><Button variant="ghost" size="sm" className="w-full text-xs justify-start" data-testid="link-mobile-admin-tds"><Shield className="w-3.5 h-3.5 mr-1" />TDS</Button></Link>
+              <Link href="/admin/messages"><Button variant="ghost" size="sm" className="w-full text-xs justify-start" data-testid="link-mobile-admin-messages"><Mail className="w-3.5 h-3.5 mr-1" />Messages</Button></Link>
+              <Link href="/admin/rates"><Button variant="ghost" size="sm" className="w-full text-xs justify-start" data-testid="link-mobile-admin-rates"><Settings className="w-3.5 h-3.5 mr-1" />Rates</Button></Link>
+              <Link href="/admin/fiat-approvals"><Button variant="ghost" size="sm" className="w-full text-xs justify-start" data-testid="link-mobile-admin-fiat"><Upload className="w-3.5 h-3.5 mr-1" />Fiat</Button></Link>
+              <Link href="/admin/funds"><Button variant="ghost" size="sm" className="w-full text-xs justify-start" data-testid="link-mobile-admin-funds"><Vault className="w-3.5 h-3.5 mr-1" />Funds</Button></Link>
+              <Link href="/admin/fiat-settings"><Button variant="ghost" size="sm" className="w-full text-xs justify-start" data-testid="link-mobile-admin-fiat-settings"><CreditCard className="w-3.5 h-3.5 mr-1" />Settings</Button></Link>
+              <Link href="/admin/crypto-withdrawals"><Button variant="ghost" size="sm" className="w-full text-xs justify-start" data-testid="link-mobile-admin-crypto-withdrawals"><ArrowDownUp className="w-3.5 h-3.5 mr-1" />Withdraw</Button></Link>
+              <Link href="/admin/notifications"><Button variant="ghost" size="sm" className="w-full text-xs justify-start" data-testid="link-mobile-admin-notifications"><Bell className="w-3.5 h-3.5 mr-1" />Notify</Button></Link>
+            </div>
+          )}
         </div>
       </nav>
 

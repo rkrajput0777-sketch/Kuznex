@@ -587,7 +587,7 @@ export default function KycPage() {
           )}
         </Card>
 
-        <div className="mt-6 grid grid-cols-4 gap-3">
+        <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
           {fieldKeys.map((key, i) => (
             <div
               key={key}
