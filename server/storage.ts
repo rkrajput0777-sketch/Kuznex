@@ -35,6 +35,7 @@ export interface IStorage {
   getInrTransactions(userId: number): Promise<InrTransaction[]>;
   submitKyc(userId: number, kycData: any): Promise<User>;
   updateKycStatus(userId: number, status: string, rejectionReason?: string): Promise<User>;
+  updateKycData(userId: number, kycData: any): Promise<void>;
   getSubmittedKycUsers(): Promise<User[]>;
   setUserAdmin(userId: number, isAdmin: boolean): Promise<void>;
   getAllUsers(): Promise<User[]>;
@@ -304,6 +305,14 @@ export class SupabaseStorage implements IStorage {
       .single();
     if (error || !user) throw new Error(error?.message || "Failed to update KYC status");
     return user as User;
+  }
+
+  async updateKycData(userId: number, kycData: any): Promise<void> {
+    const { error } = await supabase
+      .from("users")
+      .update({ kyc_data: kycData })
+      .eq("id", userId);
+    if (error) throw new Error(error.message || "Failed to update KYC data");
   }
 
   async getSubmittedKycUsers(): Promise<User[]> {

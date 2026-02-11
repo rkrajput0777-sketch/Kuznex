@@ -77,5 +77,5 @@ Kuznex is structured as a monorepo, comprising `client/` (React frontend), `serv
 ### External APIs
 - **CoinGecko API**: Real-time cryptocurrency price feeds.
 - **Etherscan V2 Multichain API**: Unified blockchain monitoring across 8 supported chains (Ethereum, BSC, Polygon, Base, Arbitrum, Optimism, Avalanche, Fantom).
-- **Google Gemini AI**: For KYC document analysis and verification.
+- **Google Gemini AI**: Strict KYC document validation (real-time verify-image endpoint with blurriness/photocopy/screenshot detection, extracted data, live selfie face verification). Auto-deletes uploaded files after admin decision.
 - **Binance WebSocket**: Real-time spot trading price data.

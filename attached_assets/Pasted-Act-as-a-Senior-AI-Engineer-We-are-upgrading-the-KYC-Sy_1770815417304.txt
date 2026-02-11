@@ -1,0 +1,37 @@
+Act as a Senior AI Engineer. We are upgrading the KYC System to be "Strict & Storage-Efficient".
+
+### 1. INTEGRATE GEMINI VISION API (Real-Time Validation)
+- Endpoint: Create /api/kyc/verify-image.
+- Input: Image File + Document Type (Aadhaar_Front / PAN / Bank_Proof).
+- AI Logic: Use GoogleGenerativeAI (Gemini 1.5 Flash model).
+- Prompt to AI:
+  "Analyze this image strictly. Is this a CLEAR and ORIGINAL Indian [Document_Type]?
+  - Check for blurriness.
+  - Check if it looks like a photocopy or screen capture (Reject if yes).
+  - Extract the Name and ID Number.
+  - Return JSON: { valid: boolean, reason: string, extracted_data: object }."
+- Frontend Behavior:
+  - Call this API *immediately* when user selects a file.
+  - If Invalid: Show Error Alert (e.g., "Blurry Image detected" or "Not a valid PAN Card"). Do NOT allow upload.
+  - If Valid: Allow the file to be uploaded to Supabase.
+
+### 2. LIVE SELFIE ONLY (No File Upload)
+- In the "Selfie Verification" step:
+  - REMOVE the <input type="file"> option completely.
+  - Implement: Use HTML5 navigator.mediaDevices.getUserMedia to open the front camera.
+  - UI: Show a live video stream + "Capture" button.
+  - Logic: Capture the frame, convert to Blob, send to Gemini to verify it's a real human face (not a photo of a photo), then upload.
+
+### 3. SMART STORAGE MANAGEMENT (Auto-Delete)
+- Problem: We have limited storage. We cannot keep images forever.
+- Solution: In the Admin Panel (/admin/kyc), update the "Approve" and "Reject" logic:
+  - Step A: Save the Extracted Data (Name, ID, etc.) into the users table permanently.
+  - Step B: Update status to 'Verified' or 'Rejected'.
+  - Step C (CRITICAL): Trigger supabase.storage.from('kyc-docs').remove([file_path]).
+  - Result: The database keeps the *record* that KYC was done, but the heavy *image files* are deleted immediately after verification to free up space.
+
+### 4. EXECUTION
+- Ensure GEMINI_API_KEY is used from Secrets.
+- Make the error messages specific (e.g., "Please upload original card, not a photocopy").
+
+UPGRADE THE KYC SYSTEM NOW.

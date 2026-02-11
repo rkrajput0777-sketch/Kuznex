@@ -17,6 +17,8 @@ import {
   FileImage,
   ChevronDown,
   ChevronUp,
+  Trash2,
+  Info,
 } from "lucide-react";
 
 interface KycUser {
@@ -97,6 +99,10 @@ export default function AdminKycReview() {
           <p className="text-muted-foreground text-sm mt-1">
             Review submitted documents and approve or reject KYC applications.
           </p>
+          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+            <Trash2 className="w-3 h-3" />
+            <span>Document images are automatically deleted after approval/rejection to save storage.</span>
+          </div>
         </div>
 
         {usersLoading ? (
@@ -133,11 +139,11 @@ export default function AdminKycReview() {
                     </div>
                     <div className="flex items-center gap-3">
                       {aiVerdict === "documents_appear_valid" ? (
-                        <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700" data-testid={`badge-ai-valid-${kycUser.id}`}>
+                        <span className="text-xs px-2 py-1 rounded-full bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300" data-testid={`badge-ai-valid-${kycUser.id}`}>
                           AI: Valid
                         </span>
                       ) : (
-                        <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-700" data-testid={`badge-ai-review-${kycUser.id}`}>
+                        <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300" data-testid={`badge-ai-review-${kycUser.id}`}>
                           AI: Review
                         </span>
                       )}
@@ -172,11 +178,13 @@ export default function AdminKycReview() {
                                 </div>
                               )}
                               {analysis && (
-                                <div className={`text-xs p-2 rounded ${analysis.isValid ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-                                  <p>{analysis.isValid ? "Valid" : "Issues found"}</p>
+                                <div className={`text-xs p-2 rounded ${(analysis.isValid || analysis.valid) ? "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300" : "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300"}`}>
+                                  <p>{(analysis.isValid || analysis.valid) ? "Valid" : "Issues found"}</p>
+                                  {analysis.reason && <p>{analysis.reason}</p>}
                                   {analysis.confidence && <p>Confidence: {analysis.confidence}%</p>}
-                                  {analysis.name && <p>Name: {analysis.name}</p>}
-                                  {analysis.panNumber && <p>PAN: {analysis.panNumber}</p>}
+                                  {(analysis.name || analysis.extracted_data?.name) && <p>Name: {analysis.name || analysis.extracted_data?.name}</p>}
+                                  {(analysis.panNumber || analysis.extracted_data?.panNumber) && <p>PAN: {analysis.panNumber || analysis.extracted_data?.panNumber}</p>}
+                                  {(analysis.aadhaarLast4 || analysis.extracted_data?.aadhaarLast4) && <p>Aadhaar: ****{analysis.aadhaarLast4 || analysis.extracted_data?.aadhaarLast4}</p>}
                                   {analysis.issues?.length > 0 && (
                                     <p>Issues: {analysis.issues.join(", ")}</p>
                                   )}
@@ -185,6 +193,11 @@ export default function AdminKycReview() {
                             </div>
                           );
                         })}
+                      </div>
+
+                      <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 text-xs text-muted-foreground">
+                        <Info className="w-3 h-3 shrink-0" />
+                        <span>Extracted data (Name, PAN, Aadhaar) will be saved permanently. Document images will be auto-deleted after your decision.</span>
                       </div>
 
                       <div className="flex flex-col gap-3 pt-2">

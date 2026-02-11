@@ -95,14 +95,99 @@ async function analyzeDocumentWithGemini(filePath: string, docType: string): Pro
     const mimeType = filePath.endsWith(".png") ? "image/png" : "image/jpeg";
 
     let prompt = "";
-    if (docType === "aadhaar_front") {
-      prompt = "Analyze this image. Is this an Indian Aadhaar card (front side)? Extract the name and last 4 digits of Aadhaar number if visible. Respond in JSON format: { \"isValid\": true/false, \"documentType\": \"aadhaar_front\", \"name\": \"...\", \"aadhaarLast4\": \"...\", \"confidence\": 0-100, \"issues\": [] }";
+    if (docType === "aadhaar_front" || docType === "Aadhaar_Front") {
+      prompt = `Analyze this image strictly. Is this a CLEAR and ORIGINAL Indian Aadhaar Card (front side)?
+- Check for blurriness. If the text is not clearly readable, mark as invalid with reason "Blurry image detected. Please upload a clearer photo."
+- Check if it looks like a photocopy, xerox copy, or screen capture/screenshot. If yes, mark as invalid with reason "Please upload original card, not a photocopy or screenshot."
+- Check if it appears to be a photo of a screen/monitor. If yes, mark as invalid with reason "Screen capture detected. Please photograph the original document."
+- Extract the Name and last 4 digits of Aadhaar number if visible.
+- Respond ONLY in JSON format: { "valid": true/false, "reason": "explanation", "extracted_data": { "name": "...", "aadhaarLast4": "..." }, "isValid": true/false, "documentType": "aadhaar_front", "confidence": 0-100, "issues": [] }`;
     } else if (docType === "aadhaar_back") {
-      prompt = "Analyze this image. Is this an Indian Aadhaar card (back side)? Check if the address section is visible. Respond in JSON format: { \"isValid\": true/false, \"documentType\": \"aadhaar_back\", \"hasAddress\": true/false, \"confidence\": 0-100, \"issues\": [] }";
-    } else if (docType === "pan_card") {
-      prompt = "Analyze this image. Is this an Indian PAN card? Extract the PAN number and name if visible. Respond in JSON format: { \"isValid\": true/false, \"documentType\": \"pan_card\", \"panNumber\": \"...\", \"name\": \"...\", \"confidence\": 0-100, \"issues\": [] }";
+      prompt = `Analyze this image strictly. Is this a CLEAR and ORIGINAL Indian Aadhaar Card (back side)?
+- Check for blurriness. If the text is not clearly readable, mark as invalid with reason "Blurry image detected. Please upload a clearer photo."
+- Check if it looks like a photocopy, xerox copy, or screen capture/screenshot. If yes, mark as invalid with reason "Please upload original card, not a photocopy or screenshot."
+- Check if the address section is visible.
+- Respond ONLY in JSON format: { "valid": true/false, "reason": "explanation", "extracted_data": { "hasAddress": true/false }, "isValid": true/false, "documentType": "aadhaar_back", "confidence": 0-100, "issues": [] }`;
+    } else if (docType === "pan_card" || docType === "PAN") {
+      prompt = `Analyze this image strictly. Is this a CLEAR and ORIGINAL Indian PAN Card?
+- Check for blurriness. If the text is not clearly readable, mark as invalid with reason "Blurry image detected. Please upload a clearer photo."
+- Check if it looks like a photocopy, xerox copy, or screen capture/screenshot. If yes, mark as invalid with reason "Please upload original PAN card, not a photocopy or screenshot."
+- Check if it appears to be a photo of a screen/monitor. If yes, mark as invalid with reason "Screen capture detected. Please photograph the original document."
+- Extract the PAN number (format: ABCDE1234F) and Name.
+- Respond ONLY in JSON format: { "valid": true/false, "reason": "explanation", "extracted_data": { "panNumber": "...", "name": "..." }, "isValid": true/false, "documentType": "pan_card", "confidence": 0-100, "issues": [] }`;
     } else if (docType === "selfie") {
-      prompt = "Analyze this image. Is this a clear selfie/photo of a person's face? Check image quality and face visibility. Respond in JSON format: { \"isValid\": true/false, \"documentType\": \"selfie\", \"faceDetected\": true/false, \"imageQuality\": \"good/poor/blurry\", \"confidence\": 0-100, \"issues\": [] }";
+      prompt = `Analyze this image strictly. Is this a REAL, LIVE selfie of a human face?
+- Check if it is a photo of a photo (printed or on screen). If yes, mark as invalid with reason "This appears to be a photo of a photo. Please take a live selfie."
+- Check for blurriness. If the face is not clear, mark as invalid with reason "Blurry image. Please ensure good lighting and hold steady."
+- Check if a real human face is clearly visible. If not, mark as invalid with reason "No clear face detected. Please face the camera directly."
+- Respond ONLY in JSON format: { "valid": true/false, "reason": "explanation", "extracted_data": { "faceDetected": true/false, "imageQuality": "good/poor/blurry" }, "isValid": true/false, "documentType": "selfie", "confidence": 0-100, "issues": [] }`;
+    } else if (docType === "Bank_Proof") {
+      prompt = `Analyze this image strictly. Is this a CLEAR and ORIGINAL Indian bank proof document (bank statement, passbook, or cancelled cheque)?
+- Check for blurriness. If the text is not clearly readable, mark as invalid with reason "Blurry image detected. Please upload a clearer photo."
+- Check if it looks like a photocopy or screen capture. If yes, mark as invalid with reason "Please upload original document, not a photocopy or screenshot."
+- Extract the account holder name and bank name if visible.
+- Respond ONLY in JSON format: { "valid": true/false, "reason": "explanation", "extracted_data": { "name": "...", "bankName": "..." }, "isValid": true/false, "documentType": "bank_proof", "confidence": 0-100, "issues": [] }`;
+    }
+
+    const result = await model.generateContent([
+      { text: prompt },
+      { inlineData: { mimeType, data: base64Image } },
+    ]);
+
+    const responseText = result.response.text();
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (parsed.valid !== undefined && parsed.isValid === undefined) {
+        parsed.isValid = parsed.valid;
+      }
+      return parsed;
+    }
+    return { isValid: false, valid: false, confidence: 0, reason: "Could not parse AI response", issues: ["Could not parse AI response"] };
+  } catch (error: any) {
+    return { isValid: false, valid: false, error: error.message, reason: error.message, confidence: 0, issues: [error.message] };
+  }
+}
+
+async function analyzeImageBuffer(buffer: Buffer, mimeType: string, docType: string): Promise<any> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return { valid: false, reason: "Gemini API key not configured", extracted_data: {} };
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const base64Image = buffer.toString("base64");
+
+    let prompt = "";
+    if (docType === "Aadhaar_Front" || docType === "aadhaar_front") {
+      prompt = `Analyze this image strictly. Is this a CLEAR and ORIGINAL Indian Aadhaar Card (front side)?
+- Check for blurriness. If the text is not clearly readable, mark as invalid with reason "Blurry image detected. Please upload a clearer photo."
+- Check if it looks like a photocopy, xerox copy, or screen capture/screenshot. If yes, mark as invalid with reason "Please upload original card, not a photocopy or screenshot."
+- Check if it appears to be a photo of a screen/monitor. If yes, mark as invalid with reason "Screen capture detected. Please photograph the original document."
+- Extract the Name and last 4 digits of Aadhaar number if visible.
+- Respond ONLY in JSON format: { "valid": true/false, "reason": "explanation", "extracted_data": { "name": "...", "aadhaarLast4": "..." } }`;
+    } else if (docType === "PAN" || docType === "pan_card") {
+      prompt = `Analyze this image strictly. Is this a CLEAR and ORIGINAL Indian PAN Card?
+- Check for blurriness. If the text is not clearly readable, mark as invalid with reason "Blurry image detected. Please upload a clearer photo."
+- Check if it looks like a photocopy, xerox copy, or screen capture/screenshot. If yes, mark as invalid with reason "Please upload original PAN card, not a photocopy or screenshot."
+- Check if it appears to be a photo of a screen/monitor. If yes, mark as invalid with reason "Screen capture detected. Please photograph the original document."
+- Extract the PAN number (format: ABCDE1234F) and Name.
+- Respond ONLY in JSON format: { "valid": true/false, "reason": "explanation", "extracted_data": { "panNumber": "...", "name": "..." } }`;
+    } else if (docType === "Bank_Proof") {
+      prompt = `Analyze this image strictly. Is this a CLEAR and ORIGINAL Indian bank proof document (bank statement, passbook, or cancelled cheque)?
+- Check for blurriness. If the text is not clearly readable, mark as invalid with reason "Blurry image detected. Please upload a clearer photo."
+- Check if it looks like a photocopy or screen capture. If yes, mark as invalid with reason "Please upload original document, not a photocopy or screenshot."
+- Extract the account holder name and bank name if visible.
+- Respond ONLY in JSON format: { "valid": true/false, "reason": "explanation", "extracted_data": { "name": "...", "bankName": "..." } }`;
+    } else if (docType === "selfie") {
+      prompt = `Analyze this image strictly. Is this a REAL, LIVE selfie of a human face?
+- Check if it is a photo of a photo (printed or on screen). If yes, mark as invalid with reason "This appears to be a photo of a photo. Please take a live selfie."
+- Check for blurriness. If the face is not clear, mark as invalid with reason "Blurry image. Please ensure good lighting and hold steady."
+- Check if a real human face is clearly visible. If not, mark as invalid with reason "No clear face detected. Please face the camera directly."
+- Respond ONLY in JSON format: { "valid": true/false, "reason": "explanation", "extracted_data": { "faceDetected": true/false, "imageQuality": "good/poor/blurry" } }`;
+    } else {
+      return { valid: false, reason: "Unknown document type", extracted_data: {} };
     }
 
     const result = await model.generateContent([
@@ -115,9 +200,9 @@ async function analyzeDocumentWithGemini(filePath: string, docType: string): Pro
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
     }
-    return { isValid: false, confidence: 0, issues: ["Could not parse AI response"], rawResponse: responseText };
+    return { valid: false, reason: "Could not parse AI response", extracted_data: {} };
   } catch (error: any) {
-    return { isValid: false, error: error.message, confidence: 0, issues: [error.message] };
+    return { valid: false, reason: error.message, extracted_data: {} };
   }
 }
 
@@ -789,6 +874,37 @@ export async function registerRoutes(
     }
   });
 
+  const singleUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+      const allowed = ["image/jpeg", "image/png", "image/webp"];
+      if (!allowed.includes(file.mimetype)) {
+        cb(new Error("Only JPEG, PNG, and WebP images are allowed"));
+        return;
+      }
+      cb(null, true);
+    },
+  });
+
+  app.post("/api/kyc/verify-image", requireAuth, singleUpload.single("image"), async (req, res) => {
+    try {
+      const file = req.file;
+      const docType = req.body.documentType;
+      if (!file) {
+        return res.status(400).json({ valid: false, reason: "No image file provided" });
+      }
+      if (!docType || !["Aadhaar_Front", "aadhaar_front", "aadhaar_back", "PAN", "pan_card", "Bank_Proof", "selfie"].includes(docType)) {
+        return res.status(400).json({ valid: false, reason: "Invalid document type" });
+      }
+
+      const result = await analyzeImageBuffer(file.buffer, file.mimetype, docType);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ valid: false, reason: error.message || "Verification failed" });
+    }
+  });
+
   app.get("/api/kyc/status", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(getEffectiveUserId(req));
@@ -903,7 +1019,70 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Rejection reason is required" });
       }
 
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) return res.status(404).json({ message: "User not found" });
+
+      const kycData = currentUser.kyc_data || {};
+      const aiAnalysis = kycData.aiAnalysis || {};
+
+      const extractedData: any = {
+        verifiedAt: new Date().toISOString(),
+        verificationStatus: status,
+      };
+
+      if (aiAnalysis.aadhaarFront) {
+        extractedData.aadhaarName = aiAnalysis.aadhaarFront.name || aiAnalysis.aadhaarFront.extracted_data?.name || null;
+        extractedData.aadhaarLast4 = aiAnalysis.aadhaarFront.aadhaarLast4 || aiAnalysis.aadhaarFront.extracted_data?.aadhaarLast4 || null;
+      }
+      if (aiAnalysis.panCard) {
+        extractedData.panNumber = aiAnalysis.panCard.panNumber || aiAnalysis.panCard.extracted_data?.panNumber || null;
+        extractedData.panName = aiAnalysis.panCard.name || aiAnalysis.panCard.extracted_data?.name || null;
+      }
+      if (aiAnalysis.selfie) {
+        extractedData.selfieVerified = aiAnalysis.selfie.isValid || aiAnalysis.selfie.valid || false;
+      }
+
+      const updatedKycData = {
+        extractedData,
+        aiVerdict: kycData.aiVerdict,
+        submittedAt: kycData.submittedAt,
+      };
+
+      await storage.updateKycData(userId, updatedKycData);
+
       const user = await storage.updateKycStatus(userId, status, rejectionReason);
+
+      const filePaths = [
+        kycData.aadhaarFrontPath,
+        kycData.aadhaarBackPath,
+        kycData.panCardPath,
+        kycData.selfiePath,
+      ].filter(Boolean);
+
+      for (const fp of filePaths) {
+        try {
+          if (fs.existsSync(fp)) {
+            fs.unlinkSync(fp);
+          }
+        } catch (e) {
+          console.log(`[KYC Cleanup] Could not delete file: ${fp}`);
+        }
+      }
+
+      const userDir = path.join("uploads", "kyc", String(userId));
+      try {
+        if (fs.existsSync(userDir)) {
+          const remaining = fs.readdirSync(userDir);
+          if (remaining.length === 0) {
+            fs.rmdirSync(userDir);
+          }
+        }
+      } catch (e) {
+        console.log(`[KYC Cleanup] Could not remove directory: ${userDir}`);
+      }
+
+      console.log(`[KYC] ${status === "verified" ? "Approved" : "Rejected"} user ${userId}. Extracted data saved, ${filePaths.length} files deleted.`);
+
       res.json({ id: user.id, kycStatus: user.kyc_status, rejectionReason: user.rejection_reason });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
