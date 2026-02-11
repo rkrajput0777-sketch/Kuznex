@@ -206,7 +206,15 @@ CREATE INDEX IF NOT EXISTS idx_users_kuznex_id ON users(kuznex_id);
 INSERT INTO platform_settings (key, value, updated_at)
 VALUES
   ('usdt_buy_rate', '92', NOW()),
-  ('usdt_sell_rate', '90', NOW())
+  ('usdt_sell_rate', '90', NOW()),
+  ('upi_id', 'kuznex@upi', NOW()),
+  ('bank_name', 'State Bank of India', NOW()),
+  ('bank_account_number', '1234567890', NOW()),
+  ('bank_ifsc', 'SBIN0001234', NOW()),
+  ('bank_account_name', 'Kuznex Pvt Ltd', NOW()),
+  ('is_upi_enabled', 'true', NOW()),
+  ('is_bank_enabled', 'true', NOW()),
+  ('is_imps_enabled', 'true', NOW())
 ON CONFLICT (key) DO NOTHING;
 
 -- =============================================================================

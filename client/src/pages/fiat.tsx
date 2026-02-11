@@ -50,10 +50,14 @@ export default function FiatPage() {
   const logout = useLogout();
   const { toast } = useToast();
 
-  const { data: bankDetails } = useQuery<{
-    bankName: string; accountNumber: string; ifscCode: string; accountHolder: string; upiId: string;
+  const { data: paymentInfo } = useQuery<{
+    upiId: string | null;
+    bankDetails: { accountNumber: string | null; ifsc: string | null; accountName: string | null; bankName: string | null } | null;
+    isImpsEnabled: boolean;
+    isUpiEnabled: boolean;
+    isBankEnabled: boolean;
   }>({
-    queryKey: ["/api/inr/bank-details"],
+    queryKey: ["/api/fiat/payment-info"],
     enabled: !!user,
   });
 
@@ -205,19 +209,41 @@ export default function FiatPage() {
                 </div>
               </div>
 
-              <div className="mb-6 p-4 rounded-lg bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
-                <div className="flex items-center gap-2 mb-3">
-                  <Building2 className="w-4 h-4 text-primary" />
-                  <h4 className="font-semibold text-foreground text-sm">Pay to Bank Account</h4>
+              {paymentInfo?.isUpiEnabled && paymentInfo.upiId && (
+                <div className="mb-4 p-4 rounded-lg bg-green-50/50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
+                  <div className="flex items-center gap-2 mb-3">
+                    <IndianRupee className="w-4 h-4 text-green-600" />
+                    <h4 className="font-semibold text-foreground text-sm">Pay via UPI</h4>
+                  </div>
+                  <div className="space-y-1 text-sm">
+                    <p className="text-muted-foreground">UPI ID: <span className="text-foreground font-mono font-medium" data-testid="text-upi-id">{paymentInfo.upiId}</span></p>
+                  </div>
                 </div>
-                <div className="space-y-1 text-sm">
-                  <p className="text-muted-foreground">Bank: <span className="text-foreground">{bankDetails?.bankName || "Loading..."}</span></p>
-                  <p className="text-muted-foreground">A/C: <span className="text-foreground">{bankDetails?.accountNumber || "Loading..."}</span></p>
-                  <p className="text-muted-foreground">IFSC: <span className="text-foreground">{bankDetails?.ifscCode || "Loading..."}</span></p>
-                  <p className="text-muted-foreground">Name: <span className="text-foreground">{bankDetails?.accountHolder || "Loading..."}</span></p>
-                  <p className="text-muted-foreground">UPI: <span className="text-foreground">{bankDetails?.upiId || "Loading..."}</span></p>
+              )}
+
+              {paymentInfo?.isBankEnabled && paymentInfo.bankDetails && (
+                <div className="mb-4 p-4 rounded-lg bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Building2 className="w-4 h-4 text-primary" />
+                    <h4 className="font-semibold text-foreground text-sm">Pay via Bank Transfer{paymentInfo.isImpsEnabled ? " / IMPS" : ""}</h4>
+                  </div>
+                  <div className="space-y-1 text-sm">
+                    <p className="text-muted-foreground">Bank: <span className="text-foreground" data-testid="text-bank-name">{paymentInfo.bankDetails.bankName || "N/A"}</span></p>
+                    <p className="text-muted-foreground">A/C: <span className="text-foreground font-mono" data-testid="text-account-number">{paymentInfo.bankDetails.accountNumber || "N/A"}</span></p>
+                    <p className="text-muted-foreground">IFSC: <span className="text-foreground font-mono" data-testid="text-ifsc">{paymentInfo.bankDetails.ifsc || "N/A"}</span></p>
+                    <p className="text-muted-foreground">Name: <span className="text-foreground" data-testid="text-account-name">{paymentInfo.bankDetails.accountName || "N/A"}</span></p>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {!paymentInfo?.isUpiEnabled && !paymentInfo?.isBankEnabled && (
+                <div className="mb-4 p-4 rounded-lg bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+                  <div className="flex items-center gap-2">
+                    <Info className="w-4 h-4 text-amber-600" />
+                    <p className="text-sm text-muted-foreground">Payment methods are currently unavailable. Please try again later or contact support.</p>
+                  </div>
+                </div>
+              )}
 
               <div className="p-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 flex gap-2 mb-4">
                 <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
