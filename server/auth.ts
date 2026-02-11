@@ -37,7 +37,7 @@ export function setupAuth(app: Express) {
       store: new MemoryStore({
         checkPeriod: 86400000,
       }),
-      secret: process.env.SESSION_SECRET || "kuznex-dev-secret",
+      secret: process.env.SESSION_SECRET!,
       resave: false,
       saveUninitialized: false,
       cookie: {

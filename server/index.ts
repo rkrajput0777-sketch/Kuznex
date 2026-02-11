@@ -9,62 +9,39 @@ import { SUPER_ADMIN_EMAIL } from "@shared/constants";
 import { runAutoMigration } from "./migrate";
 
 function validateRequiredSecrets(): void {
-  const critical: Array<{ key: string; label: string }> = [
-    { key: "NEXT_PUBLIC_SUPABASE_URL", label: "NEXT_PUBLIC_SUPABASE_URL (Supabase project URL)" },
-    { key: "NEXT_PUBLIC_SUPABASE_ANON_KEY", label: "NEXT_PUBLIC_SUPABASE_ANON_KEY (Supabase anon key)" },
+  const required: Array<{ key: string; purpose: string }> = [
+    { key: "NEXT_PUBLIC_SUPABASE_URL", purpose: "Required for Database Connection" },
+    { key: "NEXT_PUBLIC_SUPABASE_ANON_KEY", purpose: "Required for Database Connection" },
+    { key: "ETHERSCAN_API_KEY", purpose: "Required for Deposit Tracking (V2 Multichain)" },
+    { key: "MASTER_PRIVATE_KEY", purpose: "Required for Crypto Withdrawals & Fund Sweeps" },
+    { key: "ADMIN_COLD_WALLET", purpose: "Required for Emergency Fund Safety" },
+    { key: "ENCRYPTION_KEY", purpose: "Required for Securing User Wallets (AES-256)" },
+    { key: "SESSION_SECRET", purpose: "Required for User Login/Auth Security" },
   ];
 
-  const optional: Array<{ key: string; label: string }> = [
-    { key: "MASTER_PRIVATE_KEY", label: "MASTER_PRIVATE_KEY (Hot wallet private key for sending withdrawals)" },
-    { key: "ADMIN_COLD_WALLET", label: "ADMIN_COLD_WALLET (Cold wallet address for emergency sweeps)" },
-    { key: "ENCRYPTION_KEY", label: "ENCRYPTION_KEY (AES-256 key for encrypting user wallet private keys)" },
-    { key: "ETHERSCAN_API_KEY", label: "ETHERSCAN_API_KEY (Etherscan V2 Multichain API key)" },
-    { key: "SESSION_SECRET", label: "SESSION_SECRET (Express session secret)" },
-  ];
-
-  const missingCritical: string[] = [];
-  for (const { key, label } of critical) {
-    if (!process.env[key]) {
-      missingCritical.push(label);
+  const missing: Array<{ key: string; purpose: string }> = [];
+  for (const entry of required) {
+    if (!process.env[entry.key]) {
+      missing.push(entry);
     }
   }
 
-  if (missingCritical.length > 0) {
+  if (missing.length > 0) {
     console.error("");
-    console.error("=".repeat(70));
-    console.error("CRITICAL: MISSING SECRETS! Please add Keys in Tools > Secrets.");
-    console.error("=".repeat(70));
-    for (const m of missingCritical) {
-      console.error(`  - ${m}`);
+    console.error("KUZNEX SYSTEM HALTED. MISSING CONFIGURATION:");
+    console.error("---------------------------------------------------");
+    for (const m of missing) {
+      console.error(`[ ] ${m.key}: Missing! (${m.purpose})`);
     }
-    console.error("=".repeat(70));
-    console.error("The server cannot start without these secrets.");
-    console.error("=".repeat(70));
+    console.error("---------------------------------------------------");
+    console.error("PLEASE ADD THESE TO 'TOOLS > SECRETS' TO START.");
     console.error("");
     process.exit(1);
   }
 
-  const missingOptional: string[] = [];
-  for (const { key, label } of optional) {
-    if (!process.env[key]) {
-      missingOptional.push(label);
-    }
-  }
-
-  if (missingOptional.length > 0) {
-    console.warn("");
-    console.warn("=".repeat(70));
-    console.warn("WARNING: Some optional secrets are missing. Related features will be disabled.");
-    console.warn("=".repeat(70));
-    for (const m of missingOptional) {
-      console.warn(`  - ${m}`);
-    }
-    console.warn("=".repeat(70));
-    console.warn("");
-  }
-
   console.log("");
   console.log("=".repeat(70));
+  console.log("KUZNEX PRODUCTION MODE - All secrets verified.");
   console.log("System Secured. Starting Kuznex...");
   console.log("=".repeat(70));
   console.log("");

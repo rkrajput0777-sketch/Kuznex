@@ -21,6 +21,9 @@ import {
   TrendingUp,
   TrendingDown,
   Mail,
+  Vault,
+  CreditCard,
+  ArrowDownUp,
 } from "lucide-react";
 import type { UserWallet, UserStats } from "@shared/schema";
 import kuznexLogo from "@assets/image_1770554564085.png";
@@ -218,6 +221,24 @@ export default function Dashboard() {
                     <Button variant="ghost" size="sm" data-testid="link-nav-admin-fiat">
                       <Upload className="w-4 h-4 mr-2" />
                       Fiat Approvals
+                    </Button>
+                  </Link>
+                  <Link href="/admin/funds">
+                    <Button variant="ghost" size="sm" data-testid="link-nav-admin-funds">
+                      <Vault className="w-4 h-4 mr-2" />
+                      Fund Control
+                    </Button>
+                  </Link>
+                  <Link href="/admin/fiat-settings">
+                    <Button variant="ghost" size="sm" data-testid="link-nav-admin-fiat-settings">
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      Fiat Settings
+                    </Button>
+                  </Link>
+                  <Link href="/admin/crypto-withdrawals">
+                    <Button variant="ghost" size="sm" data-testid="link-nav-admin-crypto-withdrawals">
+                      <ArrowDownUp className="w-4 h-4 mr-2" />
+                      Withdrawals
                     </Button>
                   </Link>
                 </>
