@@ -401,12 +401,20 @@ export default function SpotTrade({ pair: initialPair }: { pair: string }) {
               Live
             </span>
           </div>
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 relative">
             <div
               ref={tvContainerRef}
               className="tradingview-widget-container w-full h-full"
               data-testid="chart-tradingview"
             />
+            <div
+              className="absolute bottom-0 left-0 z-50 flex items-center gap-1.5 bg-background"
+              style={{ minWidth: "140px", height: "32px", paddingLeft: "8px", paddingRight: "12px" }}
+              data-testid="overlay-kuznex-chart-brand"
+            >
+              <img src="/favicon.png" alt="Kuznex" className="w-5 h-5" />
+              <span className="text-xs font-bold text-primary tracking-wide">Kuznex</span>
+            </div>
           </div>
 
           <div className="h-48 border-t border-border overflow-hidden flex flex-col">
