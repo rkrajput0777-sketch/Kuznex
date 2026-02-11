@@ -9,39 +9,51 @@ import { SUPER_ADMIN_EMAIL } from "@shared/constants";
 import { runAutoMigration } from "./migrate";
 
 function validateRequiredSecrets(): void {
-  const required: Array<{ key: string; purpose: string }> = [
-    { key: "NEXT_PUBLIC_SUPABASE_URL", purpose: "Required for Database Connection" },
-    { key: "NEXT_PUBLIC_SUPABASE_ANON_KEY", purpose: "Required for Database Connection" },
-    { key: "ETHERSCAN_API_KEY", purpose: "Required for Deposit Tracking (V2 Multichain)" },
-    { key: "MASTER_PRIVATE_KEY", purpose: "Required for Crypto Withdrawals & Fund Sweeps" },
-    { key: "ADMIN_COLD_WALLET", purpose: "Required for Emergency Fund Safety" },
-    { key: "ENCRYPTION_KEY", purpose: "Required for Securing User Wallets (AES-256)" },
-    { key: "SESSION_SECRET", purpose: "Required for User Login/Auth Security" },
+  const required: string[] = [
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "SUPABASE_DB_PASSWORD",
+    "ENCRYPTION_KEY",
+    "MASTER_PRIVATE_KEY",
+    "ADMIN_COLD_WALLET",
+    "ETHERSCAN_API_KEY",
+    "SESSION_SECRET",
+    "GEMINI_API_KEY",
   ];
 
-  const missing: Array<{ key: string; purpose: string }> = [];
-  for (const entry of required) {
-    if (!process.env[entry.key]) {
-      missing.push(entry);
+  let hasMissing = false;
+  const statusLines: string[] = [];
+
+  for (const key of required) {
+    if (process.env[key]) {
+      statusLines.push(`[OK] ${key}`);
+    } else {
+      statusLines.push(`[MISSING] ${key}`);
+      hasMissing = true;
     }
   }
 
-  if (missing.length > 0) {
+  if (hasMissing) {
     console.error("");
-    console.error("KUZNEX SYSTEM HALTED. MISSING CONFIGURATION:");
+    console.error("KUZNEX STARTUP FAILED. MISSING SECRETS:");
     console.error("---------------------------------------------------");
-    for (const m of missing) {
-      console.error(`[ ] ${m.key}: Missing! (${m.purpose})`);
+    for (const line of statusLines) {
+      console.error(line);
     }
     console.error("---------------------------------------------------");
-    console.error("PLEASE ADD THESE TO 'TOOLS > SECRETS' TO START.");
+    console.error("ACTION: Go to 'Tools > Secrets' and add the missing keys to start.");
     console.error("");
     process.exit(1);
   }
 
   console.log("");
   console.log("=".repeat(70));
-  console.log("KUZNEX PRODUCTION MODE - All secrets verified.");
+  console.log("KUZNEX PRODUCTION MODE - All 9 secrets verified.");
+  console.log("---------------------------------------------------");
+  for (const line of statusLines) {
+    console.log(line);
+  }
+  console.log("---------------------------------------------------");
   console.log("System Secured. Starting Kuznex...");
   console.log("=".repeat(70));
   console.log("");
