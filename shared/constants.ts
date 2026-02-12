@@ -19,14 +19,14 @@ export interface ChainConfig {
 }
 
 export const SUPPORTED_CHAINS: Record<string, ChainConfig> = {
-  ethereum: { chainId: 1, name: "Ethereum (ERC20)", shortName: "ETH", explorer: "https://etherscan.io", rpcUrl: "https://eth.llamarpc.com", nativeCurrency: "ETH", minDeposit: 10, minWithdrawal: 20, withdrawalFee: 5 },
-  bsc: { chainId: 56, name: "BSC (BEP20)", shortName: "BSC", explorer: "https://bscscan.com", rpcUrl: "https://bsc-dataseed.binance.org", nativeCurrency: "BNB", minDeposit: 1, minWithdrawal: 5, withdrawalFee: 0.5 },
-  polygon: { chainId: 137, name: "Polygon (MATIC)", shortName: "MATIC", explorer: "https://polygonscan.com", rpcUrl: "https://polygon-rpc.com", nativeCurrency: "MATIC", minDeposit: 1, minWithdrawal: 5, withdrawalFee: 0.1 },
-  base: { chainId: 8453, name: "Base", shortName: "BASE", explorer: "https://basescan.org", rpcUrl: "https://mainnet.base.org", nativeCurrency: "ETH", minDeposit: 1, minWithdrawal: 5, withdrawalFee: 0.1 },
-  arbitrum: { chainId: 42161, name: "Arbitrum One", shortName: "ARB", explorer: "https://arbiscan.io", rpcUrl: "https://arb1.arbitrum.io/rpc", nativeCurrency: "ETH", minDeposit: 2, minWithdrawal: 5, withdrawalFee: 0.5 },
-  optimism: { chainId: 10, name: "Optimism", shortName: "OP", explorer: "https://optimistic.etherscan.io", rpcUrl: "https://mainnet.optimism.io", nativeCurrency: "ETH", minDeposit: 2, minWithdrawal: 5, withdrawalFee: 0.5 },
-  avalanche: { chainId: 43114, name: "Avalanche C-Chain", shortName: "AVAX", explorer: "https://snowtrace.io", rpcUrl: "https://api.avax.network/ext/bc/C/rpc", nativeCurrency: "AVAX", minDeposit: 2, minWithdrawal: 5, withdrawalFee: 0.5 },
-  fantom: { chainId: 250, name: "Fantom", shortName: "FTM", explorer: "https://ftmscan.com", rpcUrl: "https://rpc.ftm.tools", nativeCurrency: "FTM", minDeposit: 1, minWithdrawal: 5, withdrawalFee: 0.1 },
+  ethereum: { chainId: 1, name: "Ethereum (ERC20)", shortName: "ETH", explorer: "https://etherscan.io", rpcUrl: "https://ethereum-rpc.publicnode.com", nativeCurrency: "ETH", minDeposit: 0, minWithdrawal: 20, withdrawalFee: 5 },
+  bsc: { chainId: 56, name: "BSC (BEP20)", shortName: "BSC", explorer: "https://bscscan.com", rpcUrl: "https://bsc-dataseed.binance.org", nativeCurrency: "BNB", minDeposit: 0, minWithdrawal: 5, withdrawalFee: 0.5 },
+  polygon: { chainId: 137, name: "Polygon (MATIC)", shortName: "MATIC", explorer: "https://polygonscan.com", rpcUrl: "https://polygon-bor-rpc.publicnode.com", nativeCurrency: "MATIC", minDeposit: 0, minWithdrawal: 5, withdrawalFee: 0.1 },
+  base: { chainId: 8453, name: "Base", shortName: "BASE", explorer: "https://basescan.org", rpcUrl: "https://mainnet.base.org", nativeCurrency: "ETH", minDeposit: 0, minWithdrawal: 5, withdrawalFee: 0.1 },
+  arbitrum: { chainId: 42161, name: "Arbitrum One", shortName: "ARB", explorer: "https://arbiscan.io", rpcUrl: "https://arb1.arbitrum.io/rpc", nativeCurrency: "ETH", minDeposit: 0, minWithdrawal: 5, withdrawalFee: 0.5 },
+  optimism: { chainId: 10, name: "Optimism", shortName: "OP", explorer: "https://optimistic.etherscan.io", rpcUrl: "https://mainnet.optimism.io", nativeCurrency: "ETH", minDeposit: 0, minWithdrawal: 5, withdrawalFee: 0.5 },
+  avalanche: { chainId: 43114, name: "Avalanche C-Chain", shortName: "AVAX", explorer: "https://snowtrace.io", rpcUrl: "https://api.avax.network/ext/bc/C/rpc", nativeCurrency: "AVAX", minDeposit: 0, minWithdrawal: 5, withdrawalFee: 0.5 },
+  fantom: { chainId: 250, name: "Fantom", shortName: "FTM", explorer: "https://ftmscan.com", rpcUrl: "https://rpc.ftm.tools", nativeCurrency: "FTM", minDeposit: 0, minWithdrawal: 5, withdrawalFee: 0.1 },
 };
 
 export const SUPPORTED_NETWORKS = Object.entries(SUPPORTED_CHAINS).map(([id, chain]) => ({
@@ -52,12 +52,12 @@ export const COINGECKO_IDS: Record<string, string> = {
 export const NATIVE_CURRENCY_MAP: Record<number, string> = {
   1: "ETH",
   56: "BNB",
-  137: "ETH",
+  137: "MATIC",
   8453: "ETH",
   42161: "ETH",
   10: "ETH",
-  43114: "ETH",
-  250: "ETH",
+  43114: "AVAX",
+  250: "FTM",
 };
 
 export const VERIFIED_TOKEN_CONTRACTS: Record<number, Record<string, { currency: string; decimals: number }>> = {

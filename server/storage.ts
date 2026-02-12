@@ -468,7 +468,7 @@ export class SupabaseStorage implements IStorage {
       user_id: w.user_id,
       currency: w.currency,
       deposit_address: w.deposit_address,
-      network: "bsc",
+      network: "all",
     }));
   }
 

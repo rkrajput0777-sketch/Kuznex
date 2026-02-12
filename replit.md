@@ -28,7 +28,7 @@ Kuznex is structured as a monorepo, comprising `client/` (React frontend), `serv
 - **Storage Pattern**: Interface-based (`IStorage`) with a `SupabaseStorage` implementation.
 - **Authentication**: Passport-local strategy using bcrypt for password hashing and memorystore for session management.
 - **Crypto Operations**: `ethers.js` for wallet generation and `AES-256-GCM` for private key encryption.
-- **Deposit Watcher**: A background job polls the Etherscan V2 Multichain API across 8 chains to detect and auto-credit deposits after 12 block confirmations.
+- **Deposit Watcher**: Dual-scan system using Etherscan V2 Multichain API + direct RPC providers across 8 chains (ETH, BSC, MATIC, BASE, ARB, OP, AVAX, FTM). RPC-first block number resolution for reliability. No minimum deposit limits. Includes `scanMissingDeposits()` transaction-based recovery function that runs on startup to detect and credit any missed deposits by tx_hash lookup. Auto-credits after 12 block confirmations.
 
 ### Database
 - **Provider**: External Supabase (PostgreSQL).

@@ -177,7 +177,7 @@ app.use((req, res, next) => {
     async () => {
       log(`serving on port ${port}`);
       await runAutoMigration();
-      startDepositWatcher(60000);
+      await startDepositWatcher(60000);
       startSnapshotCron();
       seedTestData();
     },

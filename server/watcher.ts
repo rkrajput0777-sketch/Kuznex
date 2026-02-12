@@ -8,7 +8,34 @@ function getApiKey(): string {
   return process.env.ETHERSCAN_API_KEY || "";
 }
 
+const rpcProviders: Record<string, ethers.JsonRpcProvider> = {};
+
+function getRpcProvider(networkId: string): ethers.JsonRpcProvider | null {
+  const chain = SUPPORTED_CHAINS[networkId];
+  if (!chain?.rpcUrl) return null;
+  if (!rpcProviders[networkId]) {
+    rpcProviders[networkId] = new ethers.JsonRpcProvider(chain.rpcUrl, {
+      chainId: chain.chainId,
+      name: networkId,
+    });
+    console.log(`[Watcher] Initialized RPC provider for ${networkId} (chainId: ${chain.chainId}) -> ${chain.rpcUrl}`);
+  }
+  return rpcProviders[networkId];
+}
+
 async function getBlockNumber(chainId: number): Promise<number | null> {
+  const networkId = networkIdFromChainId(chainId);
+
+  const provider = getRpcProvider(networkId);
+  if (provider) {
+    try {
+      const block = await provider.getBlockNumber();
+      if (block > 1000) return block;
+    } catch (err: any) {
+      console.error(`[Watcher] RPC block number failed for ${networkId}:`, err.message);
+    }
+  }
+
   const apiKey = getApiKey();
   try {
     const resp = await axios.get(ETHERSCAN_V2_BASE, {
@@ -20,10 +47,15 @@ async function getBlockNumber(chainId: number): Promise<number | null> {
       },
       timeout: 10000,
     });
-    if (resp.data.result) return parseInt(resp.data.result, 16);
+    if (resp.data.result) {
+      const block = parseInt(resp.data.result, 16);
+      if (block > 1000) return block;
+      console.warn(`[Watcher] Etherscan V2 returned suspicious block number ${block} for chainId ${chainId}`);
+    }
   } catch (err: any) {
-    console.error(`[Watcher] Failed to get block number for chainId ${chainId}:`, err.message);
+    console.error(`[Watcher] Etherscan V2 block number also failed for chainId ${chainId}:`, err.message);
   }
+
   return null;
 }
 
@@ -120,25 +152,6 @@ function networkIdFromChainId(chainId: number): string {
   return "unknown";
 }
 
-function getMinDepositForNetwork(networkId: string): number {
-  const chain = SUPPORTED_CHAINS[networkId];
-  return chain?.minDeposit || 1;
-}
-
-async function getUsdtEquivalent(amount: number, currency: string): Promise<number> {
-  if (currency === "USDT") return amount;
-  try {
-    const cgIds: Record<string, string> = { BTC: "bitcoin", ETH: "ethereum", BNB: "binancecoin" };
-    const cgId = cgIds[currency];
-    if (!cgId) return amount;
-    const resp = await axios.get(`https://api.coingecko.com/api/v3/simple/price?ids=${cgId}&vs_currencies=usd`, { timeout: 5000 });
-    const price = resp.data[cgId]?.usd || 0;
-    return amount * price;
-  } catch {
-    return amount;
-  }
-}
-
 async function processDeposits(): Promise<void> {
   const apiKey = getApiKey();
   if (!apiKey) return;
@@ -168,7 +181,6 @@ async function processDeposits(): Promise<void> {
       if (!currentBlock) continue;
 
       const nativeCurrency = NATIVE_CURRENCY_MAP[chainId] || "ETH";
-      const minDeposit = getMinDepositForNetwork(networkId);
 
       for (const [address, info] of Array.from(uniqueAddresses.entries())) {
         try {
@@ -176,10 +188,7 @@ async function processDeposits(): Promise<void> {
           for (const tx of nativeTxs) {
             if (tx.value === "0") continue;
             const nativeAmount = parseFloat(ethers.formatEther(tx.value));
-            const usdtEquiv = await getUsdtEquivalent(nativeAmount, nativeCurrency);
-            if (usdtEquiv < minDeposit) {
-              continue;
-            }
+            if (nativeAmount <= 0) continue;
             const nativeInfo = { user_id: info.user_id, currency: nativeCurrency };
             await processIncomingTx(tx, nativeInfo, networkId);
           }
@@ -191,10 +200,7 @@ async function processDeposits(): Promise<void> {
             if (!verifiedToken) continue;
             const amount = ethers.formatUnits(tx.value, verifiedToken.decimals);
             const numAmount = parseFloat(amount);
-            const usdtEquiv = await getUsdtEquivalent(numAmount, verifiedToken.currency);
-            if (usdtEquiv < minDeposit) {
-              continue;
-            }
+            if (numAmount <= 0) continue;
             const tokenInfo = { user_id: info.user_id, currency: verifiedToken.currency };
             await processIncomingTx(tx, tokenInfo, networkId, amount);
           }
@@ -285,9 +291,147 @@ async function processIncomingTx(
   }
 }
 
+async function scanMissingDeposits(): Promise<void> {
+  console.log("[Watcher] === RECOVERY: Scanning for missing deposit transactions across all chains ===");
+
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    console.log("[Watcher] Recovery: No API key, skipping.");
+    return;
+  }
+
+  try {
+    const depositAddresses = await storage.getAllDepositAddresses();
+    if (depositAddresses.length === 0) {
+      console.log("[Watcher] Recovery: No deposit addresses found, skipping.");
+      return;
+    }
+
+    const uniqueAddresses = new Map<string, { user_id: number; currency: string }>();
+    for (const da of depositAddresses) {
+      if (da.deposit_address) {
+        const key = da.deposit_address.toLowerCase();
+        if (!uniqueAddresses.has(key)) {
+          uniqueAddresses.set(key, {
+            user_id: da.user_id,
+            currency: da.currency,
+          });
+        }
+      }
+    }
+
+    let totalRecovered = 0;
+    const chainIds = Object.values(SUPPORTED_CHAINS).map(c => c.chainId);
+
+    for (const chainId of chainIds) {
+      const networkId = networkIdFromChainId(chainId);
+      const nativeCurrency = NATIVE_CURRENCY_MAP[chainId] || "ETH";
+
+      let currentBlock: number | null = null;
+      try {
+        currentBlock = await getBlockNumber(chainId);
+      } catch {
+        console.log(`[Watcher] Recovery: Cannot get block number for ${networkId}, skipping.`);
+        continue;
+      }
+      if (!currentBlock) continue;
+
+      console.log(`[Watcher] Recovery: Scanning ${networkId} (chainId: ${chainId}) at block ${currentBlock}...`);
+
+      for (const [address, info] of Array.from(uniqueAddresses.entries())) {
+        try {
+          const nativeTxs = await getNormalTransactions(address, chainId, currentBlock);
+          for (const tx of nativeTxs) {
+            if (tx.value === "0") continue;
+            const existing = await storage.getTransactionByTxHash(tx.hash);
+            if (existing) continue;
+
+            const nativeAmount = parseFloat(ethers.formatEther(tx.value));
+            if (nativeAmount <= 0) continue;
+
+            const required = getRequiredConfirmations(networkId);
+            if (tx.confirmations < required) continue;
+
+            await storage.createTransaction({
+              user_id: info.user_id,
+              type: "deposit",
+              currency: nativeCurrency,
+              amount: ethers.formatEther(tx.value),
+              network: networkId,
+              status: "completed",
+              tx_hash: tx.hash,
+              confirmations: tx.confirmations,
+              required_confirmations: required,
+              from_address: tx.from,
+              to_address: tx.to,
+              withdraw_address: null,
+              admin_note: "auto-recovery",
+            });
+
+            await storage.adjustUserBalance(info.user_id, nativeCurrency, nativeAmount);
+            totalRecovered++;
+            console.log(`[Watcher] RECOVERED missing deposit: ${tx.hash} - ${nativeAmount} ${nativeCurrency} on ${networkId} for user ${info.user_id}`);
+          }
+
+          const tokenTxs = await getTokenTransactions(address, chainId, currentBlock);
+          for (const tx of tokenTxs) {
+            if (tx.value === "0") continue;
+            const existing = await storage.getTransactionByTxHash(tx.hash);
+            if (existing) continue;
+
+            const verifiedToken = resolveVerifiedToken(chainId, tx.contractAddress);
+            if (!verifiedToken) continue;
+
+            const amount = ethers.formatUnits(tx.value, verifiedToken.decimals);
+            const numAmount = parseFloat(amount);
+            if (numAmount <= 0) continue;
+
+            const required = getRequiredConfirmations(networkId);
+            if (tx.confirmations < required) continue;
+
+            await storage.createTransaction({
+              user_id: info.user_id,
+              type: "deposit",
+              currency: verifiedToken.currency,
+              amount,
+              network: networkId,
+              status: "completed",
+              tx_hash: tx.hash,
+              confirmations: tx.confirmations,
+              required_confirmations: required,
+              from_address: tx.from,
+              to_address: tx.to,
+              withdraw_address: null,
+              admin_note: "auto-recovery",
+            });
+
+            await storage.adjustUserBalance(info.user_id, verifiedToken.currency, numAmount);
+            totalRecovered++;
+            console.log(`[Watcher] RECOVERED missing token deposit: ${tx.hash} - ${numAmount} ${verifiedToken.currency} on ${networkId} for user ${info.user_id}`);
+          }
+        } catch (err: any) {
+          console.error(`[Watcher] Recovery: Error scanning ${address} on ${networkId}:`, err.message);
+        }
+
+        await new Promise(r => setTimeout(r, 300));
+      }
+
+      await new Promise(r => setTimeout(r, 500));
+    }
+
+    if (totalRecovered > 0) {
+      console.log(`[Watcher] === RECOVERY COMPLETE: Recovered ${totalRecovered} missing deposit transactions ===`);
+    } else {
+      console.log("[Watcher] === RECOVERY COMPLETE: No missing deposits found ===");
+    }
+  } catch (err: any) {
+    console.error("[Watcher] Recovery scan error:", err.message);
+  }
+}
+
 let watcherInterval: NodeJS.Timeout | null = null;
 
-export function startDepositWatcher(intervalMs: number = 60000): void {
+export async function startDepositWatcher(intervalMs: number = 60000): Promise<void> {
   const apiKey = getApiKey();
   if (!apiKey) {
     console.log("[Watcher] No ETHERSCAN_API_KEY configured. Deposit monitoring disabled.");
@@ -295,8 +439,16 @@ export function startDepositWatcher(intervalMs: number = 60000): void {
   }
 
   const chainList = Object.values(SUPPORTED_CHAINS).map(c => `${c.shortName} (${c.chainId})`).join(", ");
-  console.log(`[Watcher] Starting Etherscan V2 multichain deposit watcher (interval: ${intervalMs / 1000}s)`);
+  console.log(`[Watcher] Starting Etherscan V2 + RPC dual-scan deposit watcher (interval: ${intervalMs / 1000}s)`);
   console.log(`[Watcher] Monitoring ${Object.keys(SUPPORTED_CHAINS).length} chains: ${chainList}`);
+  console.log(`[Watcher] Minimum deposit limits REMOVED - all deposits will be detected`);
+
+  for (const [networkId] of Object.entries(SUPPORTED_CHAINS)) {
+    getRpcProvider(networkId);
+  }
+
+  await scanMissingDeposits();
+
   processDeposits();
   watcherInterval = setInterval(processDeposits, intervalMs);
 }
