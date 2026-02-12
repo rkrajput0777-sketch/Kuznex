@@ -21,8 +21,8 @@ import {
   List,
   ChevronDown,
   X,
-  Zap,
 } from "lucide-react";
+import CustomChart from "@/components/custom-chart";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { UserWallet, SpotOrder } from "@shared/schema";
@@ -110,7 +110,7 @@ export default function SpotTrade({ pair: initialPair }: { pair: string }) {
   const [mobileTab, setMobileTab] = useState<"chart" | "trade" | "pairs">("chart");
   const [showMobilePairs, setShowMobilePairs] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
-  const tvContainerRef = useRef<HTMLDivElement>(null);
+  
 
   const { data: pairsData = [], isLoading: pairsLoading } = useQuery<PairData[]>({
     queryKey: ["/api/spot/pairs"],
@@ -199,44 +199,7 @@ export default function SpotTrade({ pair: initialPair }: { pair: string }) {
     return () => clearInterval(interval);
   }, [activePair, currentPrice]);
 
-  useEffect(() => {
-    if (!tvContainerRef.current) return;
-    tvContainerRef.current.innerHTML = "";
-
-    const script = document.createElement("script");
-    script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
-    script.type = "text/javascript";
-    script.async = true;
-    script.innerHTML = JSON.stringify({
-      autosize: true,
-      symbol: `BINANCE:${activePair}`,
-      interval: "15",
-      timezone: "Asia/Kolkata",
-      theme: "light",
-      style: "1",
-      locale: "en",
-      toolbar_bg: "#f1f3f6",
-      enable_publishing: false,
-      hide_top_toolbar: true,
-      hide_legend: true,
-      save_image: false,
-      allow_symbol_change: false,
-      container_id: "tradingview_chart",
-      backgroundColor: "rgba(255, 255, 255, 1)",
-      gridColor: "rgba(240, 243, 250, 0.06)",
-      height: "100%",
-      width: "100%",
-    });
-
-    const container = document.createElement("div");
-    container.className = "tradingview-widget-container__widget";
-    container.id = "tradingview_chart";
-    container.style.height = "100%";
-    container.style.width = "100%";
-
-    tvContainerRef.current.appendChild(container);
-    tvContainerRef.current.appendChild(script);
-  }, [activePair]);
+  
 
   const orderMutation = useMutation({
     mutationFn: async (data: { pair: string; side: string; amount: string }) => {
@@ -366,36 +329,11 @@ export default function SpotTrade({ pair: initialPair }: { pair: string }) {
 
   const chartContent = (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-background" data-testid="chart-header-kuznex">
-        <span className="text-sm font-bold text-primary tracking-wide hidden sm:inline">Kuznex Pro Chart</span>
-        <span className="text-muted-foreground text-xs hidden sm:inline">|</span>
-        <span className="text-sm font-semibold text-foreground">{activePair.replace("USDT", "/USDT")}</span>
-        <span className="text-muted-foreground text-xs">|</span>
-        <span className="flex items-center gap-1 text-xs text-green-600">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-          Live
-        </span>
-      </div>
-      <div className="flex-1 min-h-0 relative">
-        <div
-          ref={tvContainerRef}
-          className="tradingview-widget-container w-full h-full"
-          data-testid="chart-tradingview"
+      <div className="flex-1 min-h-0" data-testid="chart-container">
+        <CustomChart
+          symbol={activePair}
+          displayName={activePair.replace("USDT", "/USDT")}
         />
-        <div
-          className="absolute bottom-0 left-0 z-50 flex items-center justify-center"
-          style={{
-            width: "200px",
-            height: "40px",
-            backgroundColor: "#ffffff",
-          }}
-          data-testid="overlay-kuznex-chart-brand"
-        >
-          <Zap className="w-3 h-3 mr-1" style={{ color: "#6b7280", opacity: 0.5 }} />
-          <span style={{ fontSize: "10px", color: "#6b7280", opacity: 0.5, fontWeight: 600 }}>
-            Kuznex Live Market
-          </span>
-        </div>
       </div>
       <div className="h-48 border-t border-border overflow-hidden flex flex-col">
         <div className="px-3 py-1.5 border-b border-border flex items-center gap-2">
