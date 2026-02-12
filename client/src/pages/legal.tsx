@@ -239,7 +239,7 @@ export function AmlPolicy() {
         <ul className="list-disc pl-6 space-y-1.5 mt-2">
           <li>Verification of government-issued photo identification (Aadhaar card, PAN card).</li>
           <li>Live selfie capture for biometric matching.</li>
-          <li>AI-powered document authenticity analysis using Google Gemini technology.</li>
+
           <li>Cross-referencing submitted data against watchlists and sanction lists.</li>
         </ul>
       </section>
