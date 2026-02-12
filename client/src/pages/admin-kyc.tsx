@@ -5,6 +5,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Shield,
@@ -19,6 +20,7 @@ import {
   ChevronUp,
   Trash2,
   Info,
+  X,
 } from "lucide-react";
 
 interface KycUser {
@@ -36,6 +38,9 @@ export default function AdminKycReview() {
   const logout = useLogout();
   const [expandedUser, setExpandedUser] = useState<number | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [approveModal, setApproveModal] = useState<{ userId: number; username: string } | null>(null);
+  const [aadhaarMask, setAadhaarMask] = useState("");
+  const [panMask, setPanMask] = useState("");
 
   const { data: kycUsers, isLoading: usersLoading } = useQuery<KycUser[]>({
     queryKey: ["/api/admin/kyc"],
@@ -43,10 +48,12 @@ export default function AdminKycReview() {
   });
 
   const reviewMutation = useMutation({
-    mutationFn: async ({ userId, status, reason }: { userId: number; status: string; reason?: string }) => {
+    mutationFn: async ({ userId, status, reason, aadhaarMask, panMask }: { userId: number; status: string; reason?: string; aadhaarMask?: string; panMask?: string }) => {
       const res = await apiRequest("PATCH", `/api/admin/kyc/${userId}`, {
         status,
         rejectionReason: reason,
+        aadhaarMask: aadhaarMask || undefined,
+        panMask: panMask || undefined,
       });
       return res.json();
     },
@@ -54,6 +61,9 @@ export default function AdminKycReview() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/kyc"] });
       setExpandedUser(null);
       setRejectionReason("");
+      setApproveModal(null);
+      setAadhaarMask("");
+      setPanMask("");
     },
   });
 
@@ -225,19 +235,17 @@ export default function AdminKycReview() {
                         />
                         <div className="flex gap-3">
                           <Button
-                            onClick={() => reviewMutation.mutate({ userId: kycUser.id, status: "verified" })}
+                            onClick={() => {
+                              setApproveModal({ userId: kycUser.id, username: kycUser.username });
+                              setAadhaarMask("");
+                              setPanMask("");
+                            }}
                             disabled={reviewMutation.isPending}
                             className="flex-1"
                             data-testid={`button-approve-${kycUser.id}`}
                           >
-                            {reviewMutation.isPending ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <>
-                                <CheckCircle className="w-4 h-4 mr-2" />
-                                Approve KYC
-                              </>
-                            )}
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Approve KYC
                           </Button>
                           <Button
                             variant="destructive"
@@ -265,6 +273,88 @@ export default function AdminKycReview() {
           </div>
         )}
       </main>
+
+      {approveModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" data-testid="modal-approve-kyc">
+          <Card className="w-full max-w-md mx-4 p-6 space-y-5">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-bold text-foreground">Approve KYC - {approveModal.username}</h2>
+              </div>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => setApproveModal(null)}
+                data-testid="button-close-approve-modal"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <p className="text-sm text-muted-foreground">
+              Enter the masked document numbers that will be displayed on the user's profile. These are the visible digits you choose to show.
+            </p>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Visible Aadhaar Digits</label>
+                <Input
+                  placeholder="e.g., 4521 XXXX 9821"
+                  value={aadhaarMask}
+                  onChange={(e) => setAadhaarMask(e.target.value)}
+                  data-testid="input-aadhaar-mask"
+                />
+                <p className="text-xs text-muted-foreground">Format: First 4 + XXXX + Last 4 digits</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Visible PAN Digits</label>
+                <Input
+                  placeholder="e.g., BM XXX 1234"
+                  value={panMask}
+                  onChange={(e) => setPanMask(e.target.value)}
+                  data-testid="input-pan-mask"
+                />
+                <p className="text-xs text-muted-foreground">Format: First 2 + XXX + Last 4 characters</p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setApproveModal(null)}
+                className="flex-1"
+                data-testid="button-cancel-approve"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  reviewMutation.mutate({
+                    userId: approveModal.userId,
+                    status: "verified",
+                    aadhaarMask: aadhaarMask.trim() || undefined,
+                    panMask: panMask.trim() || undefined,
+                  });
+                }}
+                disabled={reviewMutation.isPending}
+                className="flex-1"
+                data-testid="button-confirm-approve"
+              >
+                {reviewMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Confirm Approval
+                  </>
+                )}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

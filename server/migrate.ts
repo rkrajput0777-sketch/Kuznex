@@ -156,6 +156,10 @@ DO $$ BEGIN ALTER TABLE users ADD COLUMN kyc_data JSONB; EXCEPTION WHEN duplicat
 DO $$ BEGIN ALTER TABLE transactions ADD COLUMN withdraw_address TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 DO $$ BEGIN ALTER TABLE transactions ADD COLUMN admin_note TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 DO $$ BEGIN ALTER TABLE transactions ADD COLUMN updated_at TIMESTAMPTZ DEFAULT NOW(); EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE users ADD COLUMN aadhaar_mask TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE users ADD COLUMN pan_mask TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE users ADD COLUMN total_volume_usdt NUMERIC DEFAULT 0; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE users ADD COLUMN total_tds_paid NUMERIC DEFAULT 0; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_user_wallets_user_id ON user_wallets(user_id);

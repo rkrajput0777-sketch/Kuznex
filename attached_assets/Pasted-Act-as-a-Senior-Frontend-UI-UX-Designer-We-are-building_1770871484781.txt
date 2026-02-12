@@ -1,0 +1,38 @@
+Act as a Senior Frontend & UI/UX Designer. We are building a "Pro Level 3D Profile Page" for Kuznex Users.
+
+### OBJECTIVE:
+Create a visually stunning /profile page containing User Identity, Masked KYC Details (set by Admin), and Lifetime Financial Stats using a Glassmorphism/3D Tilt effect.
+
+### 1. DATABASE UPDATES (Supabase)
+- **Table users:** Add columns:
+  - aadhaar_mask (text) -> e.g., "4521 XXXX 9821"
+  - pan_mask (text) -> e.g., "BM XXX 1234"
+  - total_volume_usdt (numeric) -> Sum of all trades.
+  - total_tds_paid (numeric) -> Sum of all TDS deductions.
+
+### 2. ADMIN KYC APPROVAL UPDATE (/admin/kycCurrent Logic:c:** Clicking "Approve" just updates statusNew Logic:c:** When Admin clicks "Approve", open a Modal:
+Input 1:1:** "Enter Visible Aadhaar Digits" (e.g., User's First 4 + Last 4).
+Input 2:2:** "Enter Visible PAN Digits" (e.g., First 2 + Last 4).
+Action:n:** On Save, update kyc_status = 'verified' AND save these masked strings to the databaseWhy?y?** The Admin wants full manual control over what creates the "Verified" look.
+
+### 3. THE 3D PROFILE PAGE (/profileLibrary:y:** Use vanilla-tilt.js for the 3D hover effectLayout:t:** Two main cards side-by-side (or stacked on mobile).
+
+#Card A: The Identity Hologram (Glass Effect)t)*Visuals:s:** A credit-card style layout with a glowing borderContent:t:**
+Top Right:t:** Status Badge.
+    - If Verified: Green Shield Icon with "VERIFIED ✅".
+    - If Pending: Yellow Clock "UNDER REVIEW ⏳".
+    - If Not Submitted: Red Alert "NOT VERIFIED ❌".
+Center:r:** User Name & Email.
+Bottom Section (Private Info):):**
+    - "🇮🇳 Aadhaar: [aadhaar_mask]" (Only show if Verified).
+    - "💳 PAN Card: [pan_mask]" (Only show if Verified).
+
+#Card B: The "Trader Stats" Command Centerer*Visuals:s:** Dark, Cyberpunk grid backgroundStats Grid (2x2):):**
+  Total Volume:e:** "$54,000" (Sum of Buy/Sell).
+  Total Deposit:t:** "₹1,20,000" (Sum of Fiat/Crypto In).
+  Total Withdrawals:s:** "₹50,000".
+  TDS Contributed:d:** "₹450" (Show this in Green/Gold - "Tax Payer Badge").
+
+### 4. EXECUTION
+- Ensure the Admin Panel allows entering the masked numbers easily during approval.
+- The Profile page must look premium (High-End FintechBUILD THE PROFILE SECTION NOW.W.**

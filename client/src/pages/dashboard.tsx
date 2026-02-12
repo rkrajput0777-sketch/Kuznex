@@ -259,9 +259,11 @@ export default function Dashboard() {
 
             <div className="flex items-center gap-2">
               <NotificationBell />
-              <span className="text-sm text-muted-foreground hidden sm:inline" data-testid="text-username">
-                {user.username}
-              </span>
+              <Link href="/profile">
+                <span className="text-sm text-muted-foreground hidden sm:inline cursor-pointer hover:text-foreground transition-colors" data-testid="link-profile">
+                  {user.username}
+                </span>
+              </Link>
               <Button variant="ghost" size="icon" onClick={handleLogout} data-testid="button-logout">
                 <LogOut className="w-4 h-4" />
               </Button>

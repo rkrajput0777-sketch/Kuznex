@@ -10,6 +10,10 @@ export interface User {
   rejection_reason: string | null;
   kyc_data: any;
   is_admin: boolean;
+  aadhaar_mask: string | null;
+  pan_mask: string | null;
+  total_volume_usdt: string | null;
+  total_tds_paid: string | null;
   created_at: string;
 }
 

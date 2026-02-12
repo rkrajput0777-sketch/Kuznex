@@ -35,6 +35,8 @@ export interface IStorage {
   getInrTransactions(userId: number): Promise<InrTransaction[]>;
   submitKyc(userId: number, kycData: any): Promise<User>;
   updateKycStatus(userId: number, status: string, rejectionReason?: string): Promise<User>;
+  updateKycMasks(userId: number, aadhaarMask: string | null, panMask: string | null): Promise<void>;
+  getUserProfileStats(userId: number): Promise<{ totalVolume: number; totalTds: number; totalDeposited: number; totalWithdrawn: number }>;
   updateKycData(userId: number, kycData: any): Promise<void>;
   getSubmittedKycUsers(): Promise<User[]>;
   setUserAdmin(userId: number, isAdmin: boolean): Promise<void>;
@@ -305,6 +307,55 @@ export class SupabaseStorage implements IStorage {
       .single();
     if (error || !user) throw new Error(error?.message || "Failed to update KYC status");
     return user as User;
+  }
+
+  async updateKycMasks(userId: number, aadhaarMask: string | null, panMask: string | null): Promise<void> {
+    const { error } = await supabase
+      .from("users")
+      .update({ aadhaar_mask: aadhaarMask, pan_mask: panMask })
+      .eq("id", userId);
+    if (error) throw new Error(error.message || "Failed to update KYC masks");
+  }
+
+  async getUserProfileStats(userId: number): Promise<{ totalVolume: number; totalTds: number; totalDeposited: number; totalWithdrawn: number }> {
+    const { data: spotOrders } = await supabase
+      .from("spot_orders")
+      .select("total_usdt")
+      .eq("user_id", userId)
+      .eq("status", "completed");
+    const totalVolume = (spotOrders || []).reduce((s, o: any) => {
+      const v = parseFloat(o.total_usdt || "0");
+      return s + (isNaN(v) ? 0 : v);
+    }, 0);
+
+    const { data: swapTds } = await supabase
+      .from("swap_history")
+      .select("tds_amount")
+      .eq("user_id", userId)
+      .not("tds_amount", "is", null);
+    const { data: inrTds } = await supabase
+      .from("inr_transactions")
+      .select("tds_amount")
+      .eq("user_id", userId)
+      .not("tds_amount", "is", null);
+    const { data: fiatTds } = await supabase
+      .from("fiat_transactions")
+      .select("tds_amount")
+      .eq("user_id", userId)
+      .not("tds_amount", "is", null);
+    const totalTds = [
+      ...(swapTds || []),
+      ...(inrTds || []),
+      ...(fiatTds || []),
+    ].reduce((s, r: any) => {
+      const v = parseFloat(r.tds_amount || "0");
+      return s + (isNaN(v) ? 0 : v);
+    }, 0);
+
+    const totalDeposited = await this.getUserTotalDeposited(userId);
+    const totalWithdrawn = await this.getUserTotalWithdrawn(userId);
+
+    return { totalVolume, totalTds, totalDeposited, totalWithdrawn };
   }
 
   async updateKycData(userId: number, kycData: any): Promise<void> {

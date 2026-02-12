@@ -1000,7 +1000,7 @@ export async function registerRoutes(
   app.patch("/api/admin/kyc/:userId", requireAdmin, async (req, res) => {
     try {
       const userId = parseInt(req.params.userId as string);
-      const { status, rejectionReason } = req.body;
+      const { status, rejectionReason, aadhaarMask, panMask } = req.body;
 
       if (!["verified", "rejected"].includes(status)) {
         return res.status(400).json({ message: "Status must be 'verified' or 'rejected'" });
@@ -1008,6 +1008,13 @@ export async function registerRoutes(
 
       if (status === "rejected" && !rejectionReason) {
         return res.status(400).json({ message: "Rejection reason is required" });
+      }
+
+      if (aadhaarMask && (typeof aadhaarMask !== "string" || aadhaarMask.length > 30)) {
+        return res.status(400).json({ message: "Invalid Aadhaar mask format" });
+      }
+      if (panMask && (typeof panMask !== "string" || panMask.length > 20)) {
+        return res.status(400).json({ message: "Invalid PAN mask format" });
       }
 
       const currentUser = await storage.getUser(userId);
@@ -1040,6 +1047,10 @@ export async function registerRoutes(
       };
 
       await storage.updateKycData(userId, updatedKycData);
+
+      if (status === "verified" && (aadhaarMask || panMask)) {
+        await storage.updateKycMasks(userId, aadhaarMask || null, panMask || null);
+      }
 
       const user = await storage.updateKycStatus(userId, status, rejectionReason);
 
@@ -1554,6 +1565,31 @@ export async function registerRoutes(
         change24hAmount: parseFloat(change24hAmount.toFixed(2)),
         change24hPercent: parseFloat(change24hPercent.toFixed(2)),
         totalBalanceUsdt: parseFloat(totalBalanceUsdt.toFixed(2)),
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/user/profile", requireAuth, async (req: any, res) => {
+    try {
+      const userId = getEffectiveUserId(req);
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      const stats = await storage.getUserProfileStats(userId);
+      res.json({
+        id: user.id,
+        kuznexId: user.kuznex_id,
+        username: user.username,
+        email: user.email,
+        kycStatus: user.kyc_status,
+        aadhaarMask: user.aadhaar_mask,
+        panMask: user.pan_mask,
+        totalVolume: stats.totalVolume,
+        totalTds: stats.totalTds,
+        totalDeposited: stats.totalDeposited,
+        totalWithdrawn: stats.totalWithdrawn,
+        createdAt: user.created_at,
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });

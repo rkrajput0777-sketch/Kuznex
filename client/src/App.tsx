@@ -24,6 +24,7 @@ import AdminFiatSettings from "@/pages/admin-fiat-settings";
 import AdminCryptoWithdrawals from "@/pages/admin-crypto-withdrawals";
 import AdminNotifications from "@/pages/admin-notifications";
 import SpotTrade from "@/pages/spot-trade";
+import ProfilePage from "@/pages/profile";
 import { PrivacyPolicy, TermsOfService, RiskDisclosure, AmlPolicy, TdsCompliance } from "@/pages/legal";
 import NotFound from "@/pages/not-found";
 import RequireKYC from "@/components/require-kyc";
@@ -36,6 +37,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/contact" component={Contact} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/profile" component={ProfilePage} />
       <Route path="/kyc" component={KycPage} />
       <Route path="/legal/privacy-policy" component={PrivacyPolicy} />
       <Route path="/legal/terms" component={TermsOfService} />
