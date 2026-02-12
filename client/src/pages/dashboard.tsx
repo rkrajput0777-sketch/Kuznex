@@ -16,6 +16,7 @@ import {
   UserCheck,
   Settings,
   Users,
+  User,
   X,
   BarChart3,
   TrendingUp,
@@ -259,8 +260,11 @@ export default function Dashboard() {
 
             <div className="flex items-center gap-2">
               <NotificationBell />
-              <Link href="/profile">
-                <span className="text-sm text-muted-foreground hidden sm:inline cursor-pointer hover:text-foreground transition-colors" data-testid="link-profile">
+              <Link href="/profile" className="flex items-center gap-1.5 cursor-pointer" data-testid="link-profile">
+                <Button variant="ghost" size="icon">
+                  <User className="w-4 h-4" />
+                </Button>
+                <span className="text-sm text-muted-foreground hidden sm:inline hover:text-foreground transition-colors">
                   {user.username}
                 </span>
               </Link>
