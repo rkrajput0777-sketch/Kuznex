@@ -695,9 +695,10 @@ function Footer() {
             <h4 className="font-medium text-foreground text-sm mb-4">Company</h4>
             <ul className="space-y-2.5">
               {[
+                { name: "About Us", href: "/about" },
+                { name: "Contact Us", href: "/contact" },
                 { name: "Dashboard", href: "/dashboard" },
                 { name: "Verification", href: "/kyc" },
-                { name: "Contact Us", href: "/contact" },
               ].map((item) => (
                 <li key={item.name}>
                   <Link
@@ -719,6 +720,7 @@ function Footer() {
                 { name: "Privacy Policy", href: "/legal/privacy-policy" },
                 { name: "Terms of Service", href: "/legal/terms" },
                 { name: "Risk Disclosure", href: "/legal/risk-disclosure" },
+                { name: "Refund Policy", href: "/legal/refund-policy" },
                 { name: "AML Policy", href: "/legal/aml-policy" },
                 { name: "TDS Compliance", href: "/legal/tds-compliance" },
               ].map((item) => (
@@ -755,11 +757,11 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>Kuznex | India's #1 Trusted Crypto Exchange | Buy Bitcoin & USDT with INR</title>
-        <meta name="description" content="Join Kuznex, India's most secure crypto exchange. Buy USDT, Bitcoin (BTC), Ethereum (ETH) with UPI & IMPS. 100% TDS Compliant. Instant Withdrawals in INR." />
-        <meta property="og:site_name" content="Kuznex Exchange" />
-        <meta property="og:title" content="Buy Crypto in India with INR | Kuznex" />
-        <meta property="og:description" content="Zero Fee Deposits. Instant KYC. 100% Safe & Legal. Sign up now and get started!" />
+        <title>Kuznex | The Future of Crypto Trading</title>
+        <meta name="description" content="Trade Bitcoin, Ethereum, and 300+ cryptocurrencies with INR. The most secure, fast, and user-friendly crypto exchange built for the next generation. Join Kuznex today." />
+        <meta property="og:site_name" content="Kuznex" />
+        <meta property="og:title" content="Kuznex | Trade Crypto with Confidence" />
+        <meta property="og:description" content="Join the fastest growing crypto exchange. Zero fees on first deposit. Sign up now." />
         <link rel="canonical" href="https://kuznex.in/" />
       </Helmet>
       <style>{`

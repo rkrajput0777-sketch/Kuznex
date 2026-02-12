@@ -25,7 +25,7 @@ import AdminCryptoWithdrawals from "@/pages/admin-crypto-withdrawals";
 import AdminNotifications from "@/pages/admin-notifications";
 import SpotTrade from "@/pages/spot-trade";
 import ProfilePage from "@/pages/profile";
-import { PrivacyPolicy, TermsOfService, RiskDisclosure, AmlPolicy, TdsCompliance } from "@/pages/legal";
+import { PrivacyPolicy, TermsOfService, RiskDisclosure, AmlPolicy, TdsCompliance, RefundPolicy, AboutPage } from "@/pages/legal";
 import NotFound from "@/pages/not-found";
 import RequireKYC from "@/components/require-kyc";
 import AdminGuard from "@/components/admin-guard";
@@ -44,6 +44,8 @@ function Router() {
       <Route path="/legal/risk-disclosure" component={RiskDisclosure} />
       <Route path="/legal/aml-policy" component={AmlPolicy} />
       <Route path="/legal/tds-compliance" component={TdsCompliance} />
+      <Route path="/legal/refund-policy" component={RefundPolicy} />
+      <Route path="/about" component={AboutPage} />
       <Route path="/admin/kyc-review">
         <AdminGuard><AdminKycReview /></AdminGuard>
       </Route>

@@ -335,3 +335,101 @@ export function TdsCompliance() {
     </LegalLayout>
   );
 }
+
+export function RefundPolicy() {
+  return (
+    <LegalLayout title="Refund & Cancellation Policy" slug="refund-policy" description="Kuznex Refund & Cancellation Policy — understand our policies on crypto transactions, INR deposits, and withdrawal reversals.">
+      <p className="text-sm text-muted-foreground italic">Last updated: {new Date().toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</p>
+
+      <section>
+        <h2 className="text-lg font-semibold text-foreground mb-3">1. Nature of Cryptocurrency Transactions</h2>
+        <p>All cryptocurrency transactions executed on the Kuznex platform are processed on decentralized blockchain networks. Once a transaction is confirmed on-chain, it is <strong className="text-foreground">irreversible</strong> and cannot be cancelled, reversed, or refunded. This is a fundamental characteristic of blockchain technology and is not within the control of Kuznex or any centralized entity.</p>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-foreground mb-3">2. Crypto Deposits</h2>
+        <p>Cryptocurrency deposits made to your Kuznex wallet addresses are processed automatically upon receiving sufficient block confirmations. Once credited, deposits cannot be reversed. If you send assets to an incorrect address or on an unsupported network, Kuznex cannot guarantee recovery of those funds.</p>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-foreground mb-3">3. Crypto Withdrawals</h2>
+        <p>All crypto withdrawal requests undergo manual review by the Kuznex admin team before processing. Once a withdrawal is submitted on-chain and confirmed, it is final and non-refundable. Users are advised to double-check the destination wallet address and selected network before confirming any withdrawal request.</p>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-foreground mb-3">4. Swap & Trading Operations</h2>
+        <p>Instant swaps and spot trading orders are executed at prevailing market rates at the time of confirmation. Once an order is filled, it is considered final. Price fluctuations occurring after execution do not qualify for a refund or reversal. By confirming a swap or trade, you accept the quoted rate and associated fees.</p>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-foreground mb-3">5. INR Transactions</h2>
+        <ul className="list-disc pl-6 space-y-1.5">
+          <li><strong className="text-foreground">INR Deposits (Buy USDT):</strong> INR deposits via bank transfer, UPI, or IMPS are subject to admin approval. If an INR deposit is rejected by our team (e.g., due to mismatched details or failed verification), the original amount will be refunded to the source bank account within 5-7 business days.</li>
+          <li><strong className="text-foreground">INR Withdrawals (Sell USDT):</strong> Once an INR withdrawal is processed and sent to your bank account, it is considered final. TDS (1% under Section 194S) deducted during the process is non-refundable as it is remitted directly to the Government of India.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-foreground mb-3">6. Platform Errors & Exceptional Circumstances</h2>
+        <p>In the rare event of a platform error, system malfunction, or incorrect credit/debit caused by a technical issue on our end, Kuznex will investigate and rectify the error. Appropriate adjustments or refunds will be made at the sole discretion of Kuznex management after thorough review.</p>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-foreground mb-3">7. How to Request a Review</h2>
+        <p>If you believe a transaction was processed incorrectly, you may submit a support request with complete details (transaction ID, date, amount, and a description of the issue) to <a href="mailto:support@Kuznex.in" className="text-primary">support@Kuznex.in</a> or via the <a href="/contact" className="text-primary">Contact Us</a> page. Our team will review your case within 48 hours.</p>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-foreground mb-3">8. No Guarantee of Refund</h2>
+        <p>Kuznex does not guarantee refunds for any transaction. Each case is reviewed individually. The decision of the Kuznex management team shall be final and binding. Users are encouraged to exercise caution and verify all transaction details before confirmation.</p>
+      </section>
+    </LegalLayout>
+  );
+}
+
+export function AboutPage() {
+  return (
+    <LegalLayout title="About Kuznex" description="Learn about Kuznex - our mission to make crypto trading accessible, secure, and compliant for everyone in India.">
+      <section>
+        <h2 className="text-lg font-semibold text-foreground mb-3">Our Mission</h2>
+        <p>Kuznex is building the future of crypto trading in India. We believe that access to digital assets should be simple, secure, and available to everyone, not just the technically savvy. Our platform is designed from the ground up to remove the complexity of cryptocurrency while keeping you in full control of your assets.</p>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-foreground mb-3">What We Do</h2>
+        <p>Kuznex is a full-service digital asset exchange that enables users to buy, sell, trade, and manage cryptocurrencies with Indian Rupees. Our platform supports:</p>
+        <ul className="list-disc pl-6 space-y-1.5 mt-2">
+          <li><strong className="text-foreground">300+ Trading Pairs:</strong> Access a wide range of spot trading pairs with real-time market data powered by institutional-grade feeds.</li>
+          <li><strong className="text-foreground">Instant Crypto Swaps:</strong> Convert between supported cryptocurrencies at live market rates with transparent fee breakdowns.</li>
+          <li><strong className="text-foreground">Multichain Deposits:</strong> Receive crypto on 8 blockchain networks including Ethereum, BSC, Polygon, Arbitrum, Base, Optimism, Avalanche, and Fantom with automatic detection.</li>
+          <li><strong className="text-foreground">INR On/Off Ramp:</strong> Seamlessly move between Indian Rupees and USDT through bank transfers, UPI, and IMPS.</li>
+          <li><strong className="text-foreground">AI-Powered KYC:</strong> Fast, accurate identity verification using advanced AI technology to ensure regulatory compliance without sacrificing user experience.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-foreground mb-3">Security First</h2>
+        <p>Security is at the core of everything we build. Every private key is encrypted with AES-256-GCM, passwords are hashed with bcrypt, and all communications are secured with TLS encryption. Our withdrawal process includes manual admin review to add an extra layer of protection against unauthorized access.</p>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-foreground mb-3">Compliance</h2>
+        <p>Kuznex operates in full compliance with Indian regulations. We adhere to KYC/AML requirements under the Prevention of Money Laundering Act (PMLA), 2002, and implement TDS deduction under Section 194S of the Income Tax Act on applicable crypto-to-INR transactions. Transparency and regulatory adherence are fundamental to how we operate.</p>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-foreground mb-3">Our Team</h2>
+        <p>Kuznex Pvt Ltd is headquartered in Mathura, Uttar Pradesh, India. Our team brings together expertise in blockchain technology, financial services, cybersecurity, and user experience design. We are committed to building a platform that earns your trust through transparency, reliability, and continuous innovation.</p>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-foreground mb-3">Get in Touch</h2>
+        <p>Have questions, feedback, or partnership inquiries? We would love to hear from you.</p>
+        <ul className="list-disc pl-6 space-y-1.5 mt-2">
+          <li><strong className="text-foreground">Email:</strong> <a href="mailto:support@Kuznex.in" className="text-primary">support@Kuznex.in</a></li>
+          <li><strong className="text-foreground">Contact Form:</strong> <a href="/contact" className="text-primary">kuznex.in/contact</a></li>
+        </ul>
+      </section>
+    </LegalLayout>
+  );
+}
