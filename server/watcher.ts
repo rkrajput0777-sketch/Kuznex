@@ -672,18 +672,13 @@ export async function startDepositWatcher(intervalMs: number = 60000): Promise<v
   }
 
   const chainList = Object.values(SUPPORTED_CHAINS).map(c => `${c.shortName} (${c.chainId})`).join(", ");
-  console.log(`[Watcher] Starting Etherscan V2 + RPC dual-scan deposit watcher (interval: ${intervalMs / 1000}s)`);
+  console.log(`[Watcher] Etherscan V2 + RPC deposit scanner initialized (MANUAL MODE ONLY)`);
   console.log(`[Watcher] Monitoring ${Object.keys(SUPPORTED_CHAINS).length} chains: ${chainList}`);
-  console.log(`[Watcher] Minimum deposit limits REMOVED - all deposits will be detected`);
+  console.log(`[Watcher] Auto-scan DISABLED. Use Force Scan button to detect deposits.`);
 
   for (const [networkId] of Object.entries(SUPPORTED_CHAINS)) {
     getRpcProvider(networkId);
   }
-
-  scanMissingDeposits().catch(err => console.error("[Watcher] Recovery scan background error:", err.message));
-
-  setTimeout(() => processDeposits(), 5000);
-  watcherInterval = setInterval(processDeposits, intervalMs);
 }
 
 export function stopDepositWatcher(): void {

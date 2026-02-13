@@ -28,6 +28,8 @@ const platformSettings = {
     imps: true,
     bankTransfer: true,
   },
+  depositsEnabled: true,
+  withdrawalsEnabled: true,
 };
 
 const kycUpload = multer({
@@ -195,6 +197,16 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   setupAuth(app);
+
+  try {
+    const savedDepositSetting = await storage.getPlatformSetting("deposits_enabled");
+    if (savedDepositSetting !== null) platformSettings.depositsEnabled = savedDepositSetting === "true";
+    const savedWithdrawalSetting = await storage.getPlatformSetting("withdrawals_enabled");
+    if (savedWithdrawalSetting !== null) platformSettings.withdrawalsEnabled = savedWithdrawalSetting === "true";
+    console.log(`[Settings] Deposits: ${platformSettings.depositsEnabled ? "ON" : "OFF"}, Withdrawals: ${platformSettings.withdrawalsEnabled ? "ON" : "OFF"}`);
+  } catch (err: any) {
+    console.log("[Settings] Could not load platform settings, using defaults:", err.message);
+  }
 
   app.post("/api/auth/register", async (req, res) => {
     try {
@@ -424,7 +436,17 @@ export async function registerRoutes(
     res.json(SUPPORTED_NETWORKS);
   });
 
+  app.get("/api/platform-status", (_req, res) => {
+    res.json({
+      depositsEnabled: platformSettings.depositsEnabled,
+      withdrawalsEnabled: platformSettings.withdrawalsEnabled,
+    });
+  });
+
   app.get("/api/deposit/address", requireAuth, async (req, res) => {
+    if (!platformSettings.depositsEnabled) {
+      return res.status(403).json({ message: "Deposits are currently disabled by admin. Please try again later." });
+    }
     try {
       const userId = getEffectiveUserId(req);
       const wallets = await storage.getWallets(userId);
@@ -495,6 +517,9 @@ export async function registerRoutes(
   });
 
   app.post("/api/withdraw", requireKycVerifiedOrAdmin, async (req, res) => {
+    if (!platformSettings.withdrawalsEnabled) {
+      return res.status(403).json({ message: "Withdrawals are currently disabled by admin. Please try again later." });
+    }
     try {
       const parsed = withdrawRequestSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
@@ -1768,6 +1793,50 @@ export async function registerRoutes(
     if (typeof imps === "boolean") platformSettings.paymentMethods.imps = imps;
     if (typeof bankTransfer === "boolean") platformSettings.paymentMethods.bankTransfer = bankTransfer;
     res.json({ message: "Payment method settings updated", paymentMethods: platformSettings.paymentMethods });
+  });
+
+  app.post("/api/admin/platform-settings/toggle-deposits", requireAdmin, async (req, res) => {
+    const { enabled } = req.body;
+    if (typeof enabled !== "boolean") return res.status(400).json({ message: "enabled must be a boolean" });
+    platformSettings.depositsEnabled = enabled;
+    await storage.setPlatformSetting("deposits_enabled", enabled ? "true" : "false");
+    console.log(`[Admin] Deposits ${enabled ? "ENABLED" : "DISABLED"}`);
+    res.json({ message: `Deposits ${enabled ? "enabled" : "disabled"}`, depositsEnabled: enabled });
+  });
+
+  app.post("/api/admin/platform-settings/toggle-withdrawals", requireAdmin, async (req, res) => {
+    const { enabled } = req.body;
+    if (typeof enabled !== "boolean") return res.status(400).json({ message: "enabled must be a boolean" });
+    platformSettings.withdrawalsEnabled = enabled;
+    await storage.setPlatformSetting("withdrawals_enabled", enabled ? "true" : "false");
+    console.log(`[Admin] Withdrawals ${enabled ? "ENABLED" : "DISABLED"}`);
+    res.json({ message: `Withdrawals ${enabled ? "enabled" : "disabled"}`, withdrawalsEnabled: enabled });
+  });
+
+  app.get("/api/admin/pending-deposits", requireAdmin, async (_req, res) => {
+    try {
+      const pending = await storage.getAllPendingDeposits();
+      res.json(pending);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/credit-deposit/:txId", requireAdmin, async (req, res) => {
+    try {
+      const txId = parseInt(req.params.txId as string);
+      const tx = await storage.getTransaction(txId);
+      if (!tx) return res.status(404).json({ message: "Transaction not found" });
+      if (tx.type !== "deposit") return res.status(400).json({ message: "Not a deposit transaction" });
+      if (tx.status === "completed") return res.status(400).json({ message: "Already credited" });
+
+      await storage.adjustUserBalance(tx.user_id, tx.currency, parseFloat(tx.amount));
+      const updated = await storage.updateTransactionStatus(txId, "completed", "manual-credit-admin");
+      console.log(`[Admin] Manually credited deposit #${txId}: ${tx.amount} ${tx.currency} to user ${tx.user_id}`);
+      res.json({ message: `Credited ${tx.amount} ${tx.currency} to user`, transaction: updated });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
   });
 
   app.post("/api/contact", async (req, res) => {

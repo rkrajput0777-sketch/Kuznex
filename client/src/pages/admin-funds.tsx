@@ -19,6 +19,11 @@ import {
   EyeOff,
   CheckCircle2,
   RefreshCw,
+  Power,
+  PowerOff,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  CreditCard,
 } from "lucide-react";
 import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -29,6 +34,25 @@ interface FundOverview {
   totalWallets: number;
   coldWallet: string;
   sampleOnChainBalances: Record<string, Record<string, string>>;
+}
+
+interface PlatformStatus {
+  depositsEnabled: boolean;
+  withdrawalsEnabled: boolean;
+}
+
+interface PendingDeposit {
+  id: number;
+  user_id: number;
+  type: string;
+  currency: string;
+  amount: string;
+  network: string;
+  status: string;
+  tx_hash: string;
+  from_address: string;
+  to_address: string;
+  created_at: string;
 }
 
 export default function AdminFunds() {
@@ -67,6 +91,16 @@ export default function AdminFunds() {
     enabled: !!user?.isSuperAdmin,
   });
 
+  const { data: platformStatus } = useQuery<PlatformStatus>({
+    queryKey: ["/api/platform-status"],
+    enabled: !!user?.isSuperAdmin,
+  });
+
+  const { data: pendingDeposits, isLoading: pendingLoading } = useQuery<PendingDeposit[]>({
+    queryKey: ["/api/admin/pending-deposits"],
+    enabled: !!user?.isSuperAdmin,
+  });
+
   const forceScanAllMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/admin/force-scan-all");
@@ -74,6 +108,7 @@ export default function AdminFunds() {
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/fund-overview"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pending-deposits"] });
       toast({
         title: "System Scan Complete",
         description: data.message,
@@ -81,6 +116,49 @@ export default function AdminFunds() {
     },
     onError: (err: any) => {
       toast({ title: "Scan failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const toggleDepositsMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const res = await apiRequest("POST", "/api/admin/platform-settings/toggle-deposits", { enabled });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/platform-status"] });
+      toast({ title: data.message });
+    },
+    onError: (err: any) => {
+      toast({ title: "Toggle failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const toggleWithdrawalsMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const res = await apiRequest("POST", "/api/admin/platform-settings/toggle-withdrawals", { enabled });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/platform-status"] });
+      toast({ title: data.message });
+    },
+    onError: (err: any) => {
+      toast({ title: "Toggle failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const creditDepositMutation = useMutation({
+    mutationFn: async (txId: number) => {
+      const res = await apiRequest("POST", `/api/admin/credit-deposit/${txId}`);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pending-deposits"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/fund-overview"] });
+      toast({ title: "Deposit Credited", description: data.message });
+    },
+    onError: (err: any) => {
+      toast({ title: "Credit failed", description: err.message, variant: "destructive" });
     },
   });
 
@@ -104,6 +182,9 @@ export default function AdminFunds() {
   if (authLoading) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   }
+
+  const depositsOn = platformStatus?.depositsEnabled ?? true;
+  const withdrawalsOn = platformStatus?.withdrawalsEnabled ?? true;
 
   return (
     <div className="min-h-screen bg-background">
@@ -155,6 +236,134 @@ export default function AdminFunds() {
           <Card className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></Card>
         ) : (
           <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card className="p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <ArrowDownCircle className="w-5 h-5 text-primary" />
+                  <h3 className="font-semibold text-foreground">Deposit Control</h3>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      {depositsOn ? "Users can deposit crypto" : "Deposits are disabled for all users"}
+                    </p>
+                    <Badge variant={depositsOn ? "default" : "destructive"} className="mt-2" data-testid="badge-deposit-status">
+                      {depositsOn ? <><Power className="w-3 h-3 mr-1" />Active</> : <><PowerOff className="w-3 h-3 mr-1" />Disabled</>}
+                    </Badge>
+                  </div>
+                  <Button
+                    variant={depositsOn ? "destructive" : "default"}
+                    onClick={() => {
+                      const newState = !depositsOn;
+                      if (confirm(`Are you sure you want to ${newState ? "ENABLE" : "DISABLE"} deposits for all users?`)) {
+                        toggleDepositsMutation.mutate(newState);
+                      }
+                    }}
+                    disabled={toggleDepositsMutation.isPending}
+                    data-testid="button-toggle-deposits"
+                  >
+                    {toggleDepositsMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : depositsOn ? (
+                      <><PowerOff className="w-4 h-4 mr-2" />Turn OFF</>
+                    ) : (
+                      <><Power className="w-4 h-4 mr-2" />Turn ON</>
+                    )}
+                  </Button>
+                </div>
+              </Card>
+
+              <Card className="p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <ArrowUpCircle className="w-5 h-5 text-primary" />
+                  <h3 className="font-semibold text-foreground">Withdrawal Control</h3>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      {withdrawalsOn ? "Users can request withdrawals" : "Withdrawals are disabled for all users"}
+                    </p>
+                    <Badge variant={withdrawalsOn ? "default" : "destructive"} className="mt-2" data-testid="badge-withdrawal-status">
+                      {withdrawalsOn ? <><Power className="w-3 h-3 mr-1" />Active</> : <><PowerOff className="w-3 h-3 mr-1" />Disabled</>}
+                    </Badge>
+                  </div>
+                  <Button
+                    variant={withdrawalsOn ? "destructive" : "default"}
+                    onClick={() => {
+                      const newState = !withdrawalsOn;
+                      if (confirm(`Are you sure you want to ${newState ? "ENABLE" : "DISABLE"} withdrawals for all users?`)) {
+                        toggleWithdrawalsMutation.mutate(newState);
+                      }
+                    }}
+                    disabled={toggleWithdrawalsMutation.isPending}
+                    data-testid="button-toggle-withdrawals"
+                  >
+                    {toggleWithdrawalsMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : withdrawalsOn ? (
+                      <><PowerOff className="w-4 h-4 mr-2" />Turn OFF</>
+                    ) : (
+                      <><Power className="w-4 h-4 mr-2" />Turn ON</>
+                    )}
+                  </Button>
+                </div>
+              </Card>
+            </div>
+
+            {pendingDeposits && pendingDeposits.length > 0 && (
+              <Card className="p-6 border-yellow-500/30">
+                <div className="flex items-center gap-2 mb-4">
+                  <CreditCard className="w-5 h-5 text-yellow-600" />
+                  <h3 className="font-semibold text-foreground">Pending / Confirming Deposits</h3>
+                  <Badge variant="secondary">{pendingDeposits.length}</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mb-4">
+                  These deposits are stuck in pending/confirming state. You can manually credit them to the user's wallet.
+                </p>
+                <div className="space-y-3">
+                  {pendingDeposits.map((dep) => (
+                    <div key={dep.id} className="flex items-center justify-between gap-3 p-3 bg-secondary/50 rounded-md flex-wrap" data-testid={`card-pending-deposit-${dep.id}`}>
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-sm text-foreground">{dep.amount} {dep.currency?.toUpperCase()}</span>
+                          <Badge variant="secondary" className="text-xs">{dep.network}</Badge>
+                          <Badge variant={dep.status === "confirming" ? "default" : "secondary"} className="text-xs">{dep.status}</Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">User ID: {dep.user_id}</p>
+                        {dep.tx_hash && (
+                          <p className="font-mono text-xs text-muted-foreground truncate">{dep.tx_hash}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground">{new Date(dep.created_at).toLocaleString()}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          if (confirm(`Credit ${dep.amount} ${dep.currency?.toUpperCase()} to user ${dep.user_id}?`)) {
+                            creditDepositMutation.mutate(dep.id);
+                          }
+                        }}
+                        disabled={creditDepositMutation.isPending}
+                        data-testid={`button-credit-deposit-${dep.id}`}
+                      >
+                        {creditDepositMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <><CheckCircle2 className="w-4 h-4 mr-1" />Credit</>
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+
+            {pendingLoading && (
+              <Card className="p-6 text-center">
+                <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Loading pending deposits...</p>
+              </Card>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card className="p-6">
                 <div className="flex items-center gap-2 mb-4">
@@ -242,7 +451,7 @@ export default function AdminFunds() {
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                      className="absolute right-1 top-1/2 -translate-y-1/2"
                       onClick={() => setShowKey(!showKey)}
                       data-testid="button-toggle-key-visibility"
                     >

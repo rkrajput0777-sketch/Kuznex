@@ -93,6 +93,10 @@ export default function Deposit() {
   const [withdrawCurrency, setWithdrawCurrency] = useState("USDT");
   const [withdrawNetwork, setWithdrawNetwork] = useState("bsc");
 
+  const { data: platformStatus } = useQuery<{ depositsEnabled: boolean; withdrawalsEnabled: boolean }>({
+    queryKey: ["/api/platform-status"],
+  });
+
   const { data: networkConfigs } = useQuery<NetworkConfig[]>({
     queryKey: ["/api/network-config"],
   });
@@ -102,7 +106,7 @@ export default function Deposit() {
     networks: NetworkConfig[];
   }>({
     queryKey: ["/api/deposit/address"],
-    enabled: !!user,
+    enabled: !!user && platformStatus?.depositsEnabled !== false,
   });
 
   const { data: depositTxs } = useQuery<Transaction[]>({
@@ -275,6 +279,17 @@ export default function Deposit() {
           </TabsList>
 
           <TabsContent value="deposit" className="space-y-6">
+            {platformStatus?.depositsEnabled === false && (
+              <Card className="p-4 border-destructive/50 bg-destructive/5">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-destructive" />
+                  <div>
+                    <p className="font-semibold text-destructive text-sm">Deposits Temporarily Disabled</p>
+                    <p className="text-xs text-muted-foreground">Deposits are currently paused by the admin. Please check back later.</p>
+                  </div>
+                </div>
+              </Card>
+            )}
             <Card className="p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Shield className="w-5 h-5 text-primary" />
@@ -433,6 +448,17 @@ export default function Deposit() {
           </TabsContent>
 
           <TabsContent value="withdraw" className="space-y-6">
+            {platformStatus?.withdrawalsEnabled === false && (
+              <Card className="p-4 border-destructive/50 bg-destructive/5">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-destructive" />
+                  <div>
+                    <p className="font-semibold text-destructive text-sm">Withdrawals Temporarily Disabled</p>
+                    <p className="text-xs text-muted-foreground">Withdrawals are currently paused by the admin. Please check back later.</p>
+                  </div>
+                </div>
+              </Card>
+            )}
             <Card className="p-6">
               <div className="flex items-center gap-2 mb-4">
                 <ArrowUpRight className="w-5 h-5 text-primary" />
