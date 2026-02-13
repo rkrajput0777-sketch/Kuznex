@@ -26,7 +26,7 @@ export const SUPPORTED_CHAINS: Record<string, ChainConfig> = {
   arbitrum: { chainId: 42161, name: "Arbitrum One", shortName: "ARB", explorer: "https://arbiscan.io", rpcUrl: "https://arb1.arbitrum.io/rpc", nativeCurrency: "ETH", minDeposit: 0, minWithdrawal: 5, withdrawalFee: 0.5 },
   optimism: { chainId: 10, name: "Optimism", shortName: "OP", explorer: "https://optimistic.etherscan.io", rpcUrl: "https://mainnet.optimism.io", nativeCurrency: "ETH", minDeposit: 0, minWithdrawal: 5, withdrawalFee: 0.5 },
   avalanche: { chainId: 43114, name: "Avalanche C-Chain", shortName: "AVAX", explorer: "https://snowtrace.io", rpcUrl: "https://api.avax.network/ext/bc/C/rpc", nativeCurrency: "AVAX", minDeposit: 0, minWithdrawal: 5, withdrawalFee: 0.5 },
-  fantom: { chainId: 250, name: "Fantom", shortName: "FTM", explorer: "https://ftmscan.com", rpcUrl: "https://rpc.ftm.tools", nativeCurrency: "FTM", minDeposit: 0, minWithdrawal: 5, withdrawalFee: 0.1 },
+  fantom: { chainId: 250, name: "Fantom", shortName: "FTM", explorer: "https://ftmscan.com", rpcUrl: "https://rpc.ankr.com/fantom", nativeCurrency: "FTM", minDeposit: 0, minWithdrawal: 5, withdrawalFee: 0.1 },
 };
 
 export const SUPPORTED_NETWORKS = Object.entries(SUPPORTED_CHAINS).map(([id, chain]) => ({

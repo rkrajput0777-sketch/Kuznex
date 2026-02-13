@@ -8,19 +8,50 @@ function getApiKey(): string {
   return process.env.ETHERSCAN_API_KEY || "";
 }
 
+let scanLock = false;
+
+async function acquireScanLock(label: string, timeoutMs: number = 120000): Promise<boolean> {
+  if (scanLock) {
+    console.log(`[Watcher] ${label}: Another scan in progress, waiting...`);
+    const start = Date.now();
+    while (scanLock && Date.now() - start < timeoutMs) {
+      await new Promise(r => setTimeout(r, 2000));
+    }
+    if (scanLock) {
+      console.log(`[Watcher] ${label}: Timed out waiting for scan lock.`);
+      return false;
+    }
+  }
+  scanLock = true;
+  return true;
+}
+
+function releaseScanLock() {
+  scanLock = false;
+}
+
 const rpcProviders: Record<string, ethers.JsonRpcProvider> = {};
+const failedRpcChains = new Set<string>();
 
 function getRpcProvider(networkId: string): ethers.JsonRpcProvider | null {
+  if (failedRpcChains.has(networkId)) return null;
   const chain = SUPPORTED_CHAINS[networkId];
   if (!chain?.rpcUrl) return null;
   if (!rpcProviders[networkId]) {
-    rpcProviders[networkId] = new ethers.JsonRpcProvider(chain.rpcUrl, {
-      chainId: chain.chainId,
-      name: networkId,
+    const staticNetwork = ethers.Network.from(chain.chainId);
+    rpcProviders[networkId] = new ethers.JsonRpcProvider(chain.rpcUrl, staticNetwork, {
+      staticNetwork: staticNetwork,
     });
     console.log(`[Watcher] Initialized RPC provider for ${networkId} (chainId: ${chain.chainId}) -> ${chain.rpcUrl}`);
   }
   return rpcProviders[networkId];
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)),
+  ]);
 }
 
 async function getBlockNumber(chainId: number): Promise<number | null> {
@@ -29,10 +60,12 @@ async function getBlockNumber(chainId: number): Promise<number | null> {
   const provider = getRpcProvider(networkId);
   if (provider) {
     try {
-      const block = await provider.getBlockNumber();
+      const block = await withTimeout(provider.getBlockNumber(), 8000, `RPC ${networkId}`);
       if (block > 1000) return block;
     } catch (err: any) {
-      console.error(`[Watcher] RPC block number failed for ${networkId}:`, err.message);
+      console.error(`[Watcher] RPC block number failed for ${networkId}:`, err.message?.slice(0, 100));
+      failedRpcChains.add(networkId);
+      delete rpcProviders[networkId];
     }
   }
 
@@ -49,11 +82,14 @@ async function getBlockNumber(chainId: number): Promise<number | null> {
     });
     if (resp.data.result) {
       const block = parseInt(resp.data.result, 16);
-      if (block > 1000) return block;
+      if (block > 1000) {
+        failedRpcChains.delete(networkId);
+        return block;
+      }
       console.warn(`[Watcher] Etherscan V2 returned suspicious block number ${block} for chainId ${chainId}`);
     }
   } catch (err: any) {
-    console.error(`[Watcher] Etherscan V2 block number also failed for chainId ${chainId}:`, err.message);
+    console.error(`[Watcher] Etherscan V2 block number also failed for chainId ${chainId}:`, err.message?.slice(0, 100));
   }
 
   return null;
@@ -156,9 +192,20 @@ async function processDeposits(): Promise<void> {
   const apiKey = getApiKey();
   if (!apiKey) return;
 
+  const locked = await acquireScanLock("processDeposits", 30000);
+  if (!locked) {
+    console.log("[Watcher] Skipping deposit scan cycle (another scan active).");
+    return;
+  }
+
+  console.log("[Watcher] === Starting deposit scan cycle ===");
+
   try {
     const depositAddresses = await storage.getAllDepositAddresses();
-    if (depositAddresses.length === 0) return;
+    if (depositAddresses.length === 0) {
+      console.log("[Watcher] No deposit addresses found, skipping cycle.");
+      return;
+    }
 
     const uniqueAddresses = new Map<string, { user_id: number; currency: string }>();
     for (const da of depositAddresses) {
@@ -209,8 +256,10 @@ async function processDeposits(): Promise<void> {
         }
       }
 
-      await new Promise(r => setTimeout(r, 250));
+      await new Promise(r => setTimeout(r, 500));
     }
+
+    console.log("[Watcher] === Deposit scan cycle completed ===");
 
     const pendingDeposits = await storage.getAllPendingDeposits();
     for (const deposit of pendingDeposits) {
@@ -239,6 +288,8 @@ async function processDeposits(): Promise<void> {
     }
   } catch (err: any) {
     console.error("[Watcher] Error in deposit processing cycle:", err.message);
+  } finally {
+    releaseScanLock();
   }
 }
 
@@ -292,11 +343,18 @@ async function processIncomingTx(
 }
 
 async function scanMissingDeposits(): Promise<void> {
+  const locked = await acquireScanLock("Recovery", 180000);
+  if (!locked) {
+    console.log("[Watcher] Recovery: Skipped (scan lock timeout).");
+    return;
+  }
+
   console.log("[Watcher] === RECOVERY: Scanning for missing deposit transactions across all chains ===");
 
   const apiKey = getApiKey();
   if (!apiKey) {
     console.log("[Watcher] Recovery: No API key, skipping.");
+    releaseScanLock();
     return;
   }
 
@@ -426,12 +484,21 @@ async function scanMissingDeposits(): Promise<void> {
     }
   } catch (err: any) {
     console.error("[Watcher] Recovery scan error:", err.message);
+  } finally {
+    releaseScanLock();
   }
 }
 
 export async function forceScanUserDeposits(userId: number): Promise<{ found: number; credited: number; details: Array<{ hash: string; amount: string; currency: string; network: string; status: string }> }> {
   const apiKey = getApiKey();
   if (!apiKey) throw new Error("No ETHERSCAN_API_KEY configured");
+
+  const locked = await acquireScanLock("ForceScan", 60000);
+  if (!locked) {
+    throw new Error("Another scan is in progress. Please try again in a minute.");
+  }
+
+  try {
 
   const depositAddresses = await storage.getAllDepositAddresses();
   const userAddresses = depositAddresses.filter(da => da.user_id === userId && da.deposit_address);
@@ -560,6 +627,13 @@ export async function forceScanUserDeposits(userId: number): Promise<{ found: nu
 
   console.log(`[ForceScan] User ${userId}: found=${found}, credited=${credited}`);
   return { found, credited, details };
+
+  } catch (err: any) {
+    console.error(`[ForceScan] Error in force scan for user ${userId}:`, err.message);
+    throw err;
+  } finally {
+    releaseScanLock();
+  }
 }
 
 export async function forceScanAllDeposits(): Promise<{ found: number; credited: number }> {
@@ -567,10 +641,25 @@ export async function forceScanAllDeposits(): Promise<{ found: number; credited:
   if (!apiKey) throw new Error("No ETHERSCAN_API_KEY configured");
 
   console.log("[ForceScan] Admin triggered full system scan...");
-  await scanMissingDeposits();
-  await processDeposits();
-  console.log("[ForceScan] Admin full system scan complete.");
-  return { found: 0, credited: 0 };
+
+  const depositAddresses = await storage.getAllDepositAddresses();
+  const userIds = Array.from(new Set(depositAddresses.map(da => da.user_id)));
+
+  let totalFound = 0;
+  let totalCredited = 0;
+
+  for (const userId of userIds) {
+    try {
+      const result = await forceScanUserDeposits(userId);
+      totalFound += result.found;
+      totalCredited += result.credited;
+    } catch (err: any) {
+      console.error(`[ForceScan] Error scanning user ${userId}:`, err.message);
+    }
+  }
+
+  console.log(`[ForceScan] Admin full scan complete: found=${totalFound}, credited=${totalCredited}`);
+  return { found: totalFound, credited: totalCredited };
 }
 
 let watcherInterval: NodeJS.Timeout | null = null;
@@ -591,9 +680,9 @@ export async function startDepositWatcher(intervalMs: number = 60000): Promise<v
     getRpcProvider(networkId);
   }
 
-  await scanMissingDeposits();
+  scanMissingDeposits().catch(err => console.error("[Watcher] Recovery scan background error:", err.message));
 
-  processDeposits();
+  setTimeout(() => processDeposits(), 5000);
   watcherInterval = setInterval(processDeposits, intervalMs);
 }
 
