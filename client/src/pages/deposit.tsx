@@ -24,6 +24,7 @@ import {
   ArrowUpRight,
   Shield,
   Info,
+  RefreshCw,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -119,6 +120,25 @@ export default function Deposit() {
   const { data: wallets } = useQuery<Array<{ currency: string; balance: string }>>({
     queryKey: ["/api/wallet"],
     enabled: !!user,
+  });
+
+  const forceScanMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/deposit/force-scan");
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/deposit/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/wallet"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/stats"] });
+      toast({
+        title: data.found > 0 ? "Deposits Found!" : "Scan Complete",
+        description: data.message,
+      });
+    },
+    onError: (err: any) => {
+      toast({ title: "Scan failed", description: err.message, variant: "destructive" });
+    },
   });
 
   const withdrawMutation = useMutation({
@@ -329,9 +349,24 @@ export default function Deposit() {
             </Card>
 
             <div>
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
                 <h2 className="text-lg font-semibold text-foreground">Recent Deposits</h2>
-                <span className="text-xs text-muted-foreground">Auto-refreshes every 10s</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground hidden sm:inline">Auto-refreshes every 10s</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => forceScanMutation.mutate()}
+                    disabled={forceScanMutation.isPending}
+                    data-testid="button-force-scan"
+                  >
+                    {forceScanMutation.isPending ? (
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Scanning 8 Chains...</>
+                    ) : (
+                      <><RefreshCw className="w-4 h-4 mr-2" />Scan Deposits</>
+                    )}
+                  </Button>
+                </div>
               </div>
 
               {(!depositTxs || depositTxs.length === 0) ? (

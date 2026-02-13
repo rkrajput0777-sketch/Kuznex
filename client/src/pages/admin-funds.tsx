@@ -18,6 +18,7 @@ import {
   Eye,
   EyeOff,
   CheckCircle2,
+  RefreshCw,
 } from "lucide-react";
 import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -66,6 +67,23 @@ export default function AdminFunds() {
     enabled: !!user?.isSuperAdmin,
   });
 
+  const forceScanAllMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/force-scan-all");
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/fund-overview"] });
+      toast({
+        title: "System Scan Complete",
+        description: data.message,
+      });
+    },
+    onError: (err: any) => {
+      toast({ title: "Scan failed", description: err.message, variant: "destructive" });
+    },
+  });
+
   const sweepMutation = useMutation({
     mutationFn: async (address: string) => {
       const res = await apiRequest("POST", "/api/admin/sweep", { coldWalletAddress: address });
@@ -105,14 +123,32 @@ export default function AdminFunds() {
       </nav>
 
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Wallet className="w-5 h-5 text-primary" />
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Wallet className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground" data-testid="text-fund-control-title">Fund Control Center</h1>
+              <p className="text-sm text-muted-foreground">Monitor systemwide balances and execute fund sweeps</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground" data-testid="text-fund-control-title">Fund Control Center</h1>
-            <p className="text-sm text-muted-foreground">Monitor systemwide balances and execute fund sweeps</p>
-          </div>
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (confirm("This will scan all 8 chains for every user's deposit addresses. This may take a few minutes. Continue?")) {
+                forceScanAllMutation.mutate();
+              }
+            }}
+            disabled={forceScanAllMutation.isPending}
+            data-testid="button-admin-force-scan"
+          >
+            {forceScanAllMutation.isPending ? (
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Scanning All Chains...</>
+            ) : (
+              <><RefreshCw className="w-4 h-4 mr-2" />Force Scan All Deposits</>
+            )}
+          </Button>
         </div>
 
         {fundsLoading ? (

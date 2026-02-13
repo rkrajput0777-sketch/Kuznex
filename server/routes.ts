@@ -12,6 +12,7 @@ import fs from "fs";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getRequiredConfirmations, decryptPrivateKey } from "./crypto";
 import { ethers } from "ethers";
+import { forceScanUserDeposits, forceScanAllDeposits } from "./watcher";
 
 function extractPanFromKyc(kycData: any): string | null {
   try {
@@ -449,6 +450,37 @@ export async function registerRoutes(
       res.json(transactions);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/deposit/force-scan", requireAuth, async (req, res) => {
+    try {
+      const userId = getEffectiveUserId(req);
+      console.log(`[ForceScan] User ${userId} triggered manual deposit scan`);
+      const result = await forceScanUserDeposits(userId);
+      res.json({
+        message: result.found > 0
+          ? `Found ${result.found} deposit(s), ${result.credited} credited to your wallet.`
+          : "No new deposits found. All your deposits are already credited.",
+        ...result,
+      });
+    } catch (error: any) {
+      console.error("[ForceScan] User scan error:", error.message);
+      res.status(500).json({ message: "Scan failed: " + error.message });
+    }
+  });
+
+  app.post("/api/admin/force-scan-all", requireAdmin, async (_req, res) => {
+    try {
+      console.log("[ForceScan] Admin triggered full system deposit scan");
+      const result = await forceScanAllDeposits();
+      res.json({
+        message: "Full system scan completed. All missing deposits have been recovered.",
+        ...result,
+      });
+    } catch (error: any) {
+      console.error("[ForceScan] Admin scan error:", error.message);
+      res.status(500).json({ message: "System scan failed: " + error.message });
     }
   });
 
