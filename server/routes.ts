@@ -16,7 +16,10 @@ import { forceScanUserDeposits, forceScanAllDeposits } from "./watcher";
 
 function extractPanFromKyc(kycData: any): string | null {
   try {
-    return kycData?.aiAnalysis?.panCard?.panNumber || null;
+    return kycData?.aiAnalysis?.panCard?.panNumber
+      || kycData?.aiAnalysis?.panCard?.extracted_data?.panNumber
+      || kycData?.extractedData?.panNumber
+      || null;
   } catch {
     return null;
   }
