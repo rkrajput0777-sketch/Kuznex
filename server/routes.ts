@@ -1127,6 +1127,7 @@ export async function registerRoutes(
 
       res.json({ id: user.id, kycStatus: user.kyc_status, rejectionReason: user.rejection_reason });
     } catch (error: any) {
+      console.error(`[KYC] Error reviewing user: ${error.message}`, error.stack);
       res.status(500).json({ message: error.message });
     }
   });

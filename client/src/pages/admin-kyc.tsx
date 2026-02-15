@@ -22,6 +22,7 @@ import {
   Info,
   X,
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface KycUser {
   id: number;
@@ -41,6 +42,7 @@ export default function AdminKycReview() {
   const [approveModal, setApproveModal] = useState<{ userId: number; username: string } | null>(null);
   const [aadhaarMask, setAadhaarMask] = useState("");
   const [panMask, setPanMask] = useState("");
+  const { toast } = useToast();
 
   const { data: kycUsers, isLoading: usersLoading } = useQuery<KycUser[]>({
     queryKey: ["/api/admin/kyc"],
@@ -57,13 +59,24 @@ export default function AdminKycReview() {
       });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/kyc"] });
       setExpandedUser(null);
       setRejectionReason("");
       setApproveModal(null);
       setAadhaarMask("");
       setPanMask("");
+      toast({
+        title: variables.status === "verified" ? "KYC Approved" : "KYC Rejected",
+        description: variables.status === "verified" ? "User KYC has been approved successfully." : "User KYC has been rejected.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "KYC Review Failed",
+        description: error.message || "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
     },
   });
 
