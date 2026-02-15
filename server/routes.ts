@@ -388,12 +388,6 @@ export async function registerRoutes(
       let netPayout = toAmount;
 
       if (toCurrency === "INR") {
-        const currentUser = await storage.getUser(userId);
-        if (!currentUser) return res.status(404).json({ message: "User not found" });
-        const pan = extractPanFromKyc(currentUser.kyc_data);
-        if (!pan && !currentUser.is_admin) {
-          return res.status(403).json({ message: "PAN Card verification required for crypto-to-INR transactions as per Govt norms." });
-        }
         tdsAmount = toAmount * TDS_RATE;
         exchangeFee = toAmount * EXCHANGE_FEE_RATE;
         netPayout = toAmount - tdsAmount - exchangeFee;
@@ -648,13 +642,6 @@ export async function registerRoutes(
       const userId = getEffectiveUserId(req);
       const amount = parseFloat(parsed.data.amount);
 
-      const currentUser = await storage.getUser(userId);
-      if (!currentUser) return res.status(404).json({ message: "User not found" });
-      const pan = extractPanFromKyc(currentUser.kyc_data);
-      if (!pan && !currentUser.is_admin) {
-        return res.status(403).json({ message: "PAN Card verification required for INR withdrawals as per Govt norms." });
-      }
-
       const wallet = await storage.getWallet(userId, "INR");
       if (!wallet || parseFloat(wallet.balance) < amount) {
         return res.status(400).json({ message: "Insufficient INR balance" });
@@ -761,13 +748,6 @@ export async function registerRoutes(
       const usdtWallet = await storage.getWallet(userId, "USDT");
       if (!usdtWallet || parseFloat(usdtWallet.balance) < usdtAmount) {
         return res.status(400).json({ message: "Insufficient USDT balance" });
-      }
-
-      const currentUser = await storage.getUser(userId);
-      if (!currentUser) return res.status(404).json({ message: "User not found" });
-      const pan = extractPanFromKyc(currentUser.kyc_data);
-      if (!pan && !currentUser.is_admin) {
-        return res.status(403).json({ message: "PAN Card verification required for selling USDT as per Govt norms." });
       }
 
       const sellRateStr = await storage.getPlatformSetting("usdt_sell_rate");
